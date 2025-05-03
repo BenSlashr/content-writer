@@ -7,6 +7,22 @@ import json
 import urllib.parse
 import logging
 from typing import Dict, Any, Optional
+from fastapi.responses import FileResponse
+import os
+
+app = FastAPI()
+
+# Serve le dossier static (css, js, index.html, etc.)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+# Optionnel : route fallback pour servir index.html
+@app.get("/")
+async def root():
+    return FileResponse("static/index.html")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", 8000)))
 
 # Configuration du logging
 logging.basicConfig(
