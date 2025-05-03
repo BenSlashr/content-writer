@@ -20,6 +20,11 @@ app.mount("/", StaticFiles(directory="static", html=True), name="static")
 async def root():
     return FileResponse("static/index.html")
 
+# Ajoute aussi /index.html si besoin
+@app.get("/index.html")
+async def read_index_explicit():
+    return FileResponse("static/index.html")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", 8000)))
