@@ -7,6 +7,12 @@ import json
 import urllib.parse
 import logging
 from typing import Dict, Any, Optional
+from fastapi.responses import FileResponse  # Ajoutez cette importation
+import os  # Ajoutez cette importation
+
+# Configuration du chemin de base pour le déploiement
+BASE_PATH = os.getenv("BASE_PATH", "")
+app = FastAPI(title="Content Writer API", root_path=BASE_PATH)
 
 # Configuration du logging
 logging.basicConfig(
@@ -16,6 +22,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Content Writer API")
+
+@app.get("/", include_in_schema=False)
+async def read_index():
+    return FileResponse("static/index.html")
+
+@app.get("/index.html", include_in_schema=False)
+async def explicit_index():
+    return FileResponse("static/index.html")
 
 # Configuration CORS pour permettre les requêtes depuis le frontend
 app.add_middleware(
@@ -266,3 +280,6 @@ async def order_guide(request: GuideRequest):
         # Log de l'exception
         logger.exception(f"Exception lors de la commande du guide: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
