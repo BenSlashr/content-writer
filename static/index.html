@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+    <base href="/content-writer/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Content Writer - Rédaction SEO guidée</title>
@@ -664,7 +665,7 @@ mark.ngram {
 
     <script>
         // URL de l'API (à modifier selon l'environnement)
-        const API_URL = 'http://localhost:8000';
+        const API_URL = window.location.origin + "/content-writer";
         
         // Fonction pour extraire correctement les valeurs min et max d'un mot-clé
         function extractMinMaxValues(keyword) {
