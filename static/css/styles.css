@@ -1,0 +1,307 @@
+/* Styles personnalisés pour Content Writer */
+
+/* Styles pour le menu de navigation */
+nav.bg-gray-800 {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+nav .container {
+    max-width: 1280px;
+}
+
+nav img.h-8 {
+    transition: transform 0.2s ease;
+}
+
+nav img.h-8:hover {
+    transform: scale(1.05);
+}
+
+nav a {
+    font-weight: 500;
+    font-size: 0.95rem;
+    position: relative;
+}
+
+nav a::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -4px;
+    left: 0;
+    background-color: #60a5fa;
+    transition: width 0.3s ease;
+}
+
+nav a:hover::after {
+    width: 100%;
+}
+
+
+/* Styles pour les mots-clés */
+.keyword-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    background-color: #f3f4f6;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    max-width: 48%;
+}
+
+.keyword-count {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background-color: #e5e7eb;
+    font-weight: 600;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
+
+.keyword-count.completed {
+    background-color: #10b981;
+    color: white;
+}
+
+.keyword-text {
+    font-size: 0.875rem;
+    color: #4b5563;
+}
+
+.keyword-text.completed {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.keyword-required {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-left: auto;
+}
+
+/* Styles pour les n-grams */
+.ngram-item {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    background-color: #f3f4f6;
+    font-size: 0.75rem;
+    color: #4b5563;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.ngram-item.found {
+    background-color: #d1fae5;
+    color: #065f46;
+    font-weight: 600;
+}
+
+/* Styles pour l'éditeur */
+#editor {
+    min-height: 500px;
+    max-height: 70vh;
+    line-height: 1.5;
+    font-size: 1rem;
+    color: #1f2937;
+    overflow-y: auto;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#editor:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* Styles pour les mots surlignés */
+mark {
+    background-color: #fef3c7;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+mark.obligatoire {
+    background-color: #d1fae5;
+}
+
+mark.complementaire {
+    background-color: #dbeafe;
+}
+
+mark.ngram {
+    background-color: #fef3c7;
+}
+
+/* Styles pour les statistiques */
+.stat-card {
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* Styles pour les tooltips */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltip-text {
+    visibility: hidden;
+    width: 200px;
+    background-color: #1f2937;
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.75rem;
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Styles pour les menus déroulants */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 10;
+    border-radius: 4px;
+}
+
+.dropdown-content button {
+    color: black;
+    padding: 8px 16px;
+    text-decoration: none;
+    display: block;
+    text-align: left;
+    width: 100%;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.dropdown-content button:hover {
+    background-color: #f1f1f1;
+}
+
+.show {
+    display: block;
+}
+
+/* Styles pour l'éditeur de texte enrichi */
+#editor h1 {
+    font-size: 2em;
+    font-weight: bold;
+    margin: 0.67em 0;
+}
+
+#editor h2 {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 0.83em 0;
+}
+
+#editor h3 {
+    font-size: 1.17em;
+    font-weight: bold;
+    margin: 1em 0;
+}
+
+#editor h4 {
+    font-size: 1em;
+    font-weight: bold;
+    margin: 1.33em 0;
+}
+
+#editor blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 1em;
+    margin-left: 0;
+    margin-right: 0;
+    font-style: italic;
+    color: #6b7280;
+}
+
+#editor ul {
+    list-style-type: disc;
+    margin-left: 1.5em;
+}
+
+#editor ol {
+    list-style-type: decimal;
+    margin-left: 1.5em;
+}
+
+#editor code {
+    font-family: monospace;
+    background-color: #f3f4f6;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+#editor table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+
+#editor table, #editor th, #editor td {
+    border: 1px solid #e5e7eb;
+}
+
+#editor th, #editor td {
+    padding: 0.5em;
+    text-align: left;
+}
+
+#editor th {
+    background-color: #f9fafb;
+    font-weight: bold;
+}
+
+#editor a {
+    color: #3b82f6;
+    text-decoration: underline;
+}
+
+#editor img {
+    max-width: 100%;
+    height: auto;
+}
