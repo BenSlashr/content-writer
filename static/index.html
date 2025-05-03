@@ -1748,9 +1748,16 @@ mark.ngram {
         
         // Mettre à jour le graphique d'optimisation avec ApexCharts
         function updateOptimizationChart() {
+            // Si le graphique n'est pas initialisé, essayons de l'initialiser maintenant
             if (!optimizationChart) {
-                console.warn('Le graphique d\'optimisation n\'est pas initialisé');
-                return;
+                console.warn('Le graphique d\'optimisation n\'est pas initialisé, tentative d\'initialisation...');
+                initOptimizationChart();
+                
+                // Vérifier à nouveau si l'initialisation a réussi
+                if (!optimizationChart) {
+                    console.error('Échec de l\'initialisation du graphique d\'optimisation');
+                    return;
+                }
             }
             
             console.log('Mise à jour du graphique avec les données:', keywordData);
