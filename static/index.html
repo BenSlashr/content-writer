@@ -316,7 +316,22 @@ mark.ngram {
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mark.js@8.11.1/dist/mark.min.js"></script>
     <!-- ApexCharts pour les graphiques -->
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.35.0/dist/apexcharts.min.js"></script></head>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.35.0/dist/apexcharts.min.js"></script>
+    <!-- Scripts locaux - Architecture modulaire -->
+    <script type="module">
+        // Détection automatique du chemin de base
+        const basePath = window.location.pathname.includes('/content-writer') 
+            ? window.location.pathname.substring(0, window.location.pathname.indexOf('/content-writer') + '/content-writer'.length)
+            : '';
+        
+        // Import du module principal avec le bon chemin
+        import(`${basePath}/static/js/main.js`).catch(err => {
+            console.error('Erreur de chargement du module principal:', err);
+            // Fallback vers le chemin absolu
+            import('/static/js/main.js');
+        });
+    </script>
+</head>
 <body class="bg-gray-100 font-sans">
     <!-- Menu de navigation -->
     <nav class="bg-gray-800 text-white py-3 mb-4">
@@ -376,26 +391,33 @@ mark.ngram {
                     <h2 class="text-xl font-semibold mb-2">Statistiques</h2>
                     <div class="grid grid-cols-2 gap-4">
                         <!-- Score SEO -->
-                        <div class="bg-gray-100 p-3 rounded-lg">
+                        <div class="bg-white p-4 rounded-lg shadow">
                             <h3 class="text-sm font-medium text-gray-600">Score SEO</h3>
-                            <div class="flex items-center">
+                            <div class="flex items-center space-x-2">
                                 <span id="score-seo" class="text-2xl font-bold text-green-600">0%</span>
-                                <div class="ml-2 text-xs text-gray-500">
-                                    <span>sur les <span id="kw-obligatoires-count">0</span> % requis</span>
-                                    <span class="ml-1 cursor-pointer text-blue-500" title="Pourcentage de mots-clés obligatoires utilisés par rapport au minimum requis"><i class="fas fa-info-circle"></i></span>
+                                <span class="text-xs text-gray-500">/ 100</span>
+                            </div>
+                            
+                            <!-- Détails du score -->
+                            <div class="mt-2 space-y-1">
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-gray-600">Score de base:</span>
+                                    <span id="base-score" class="font-medium">0%</span>
+                                </div>
+                              
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-gray-600">Obligatoires :</span>
+                                    <span id="obligatoires-score" class="font-medium">0%</span>
+                                </div>
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-gray-600">Complémentaires :</span>
+                                    <span id="complementaires-score" class="font-medium">0%</span>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- 200 premiers mots -->
-                        <div class="bg-gray-100 p-3 rounded-lg">
-                            <h3 class="text-sm font-medium text-gray-600">Mots-clés en intro</h3>
-                            <div class="flex items-center">
-                                <span id="premiers-mots-percent" class="text-2xl font-bold text-green-600">0/4</span>
-                                <div class="ml-2 text-xs text-gray-500">
-                                    <span>dans les 200 premiers mots</span>
-                                    <span class="ml-1 cursor-pointer text-blue-500" title="Nombre de mots-clés obligatoires présents dans les 200 premiers mots. Objectif: au moins 4 mots-clés pour optimiser le début du contenu."><i class="fas fa-info-circle"></i></span>
-                                </div>
+                            
+                            <!-- Détails techniques -->
+                            <div id="score-details" class="mt-2 text-xs text-gray-500">
+                                <!-- Les détails seront injectés par JavaScript -->
                             </div>
                         </div>
                         
@@ -403,7 +425,7 @@ mark.ngram {
                         <div class="bg-gray-100 p-3 rounded-lg">
                             <h3 class="text-sm font-medium text-gray-600">Suroptimisation</h3>
                             <div class="flex items-center">
-                                <span id="suroptimisation" class="text-2xl font-bold text-green-600">0%</span>
+                                <span id="suroptimisation" class="text-2xl font-bold text-red-600">0%</span>
                                 <div class="ml-2 text-xs text-gray-500">
                                     <span>max: <span id="max-suroptimisation">0</span> %</span>
                                     <span class="ml-1 cursor-pointer text-blue-500" title="Niveau de suroptimisation du contenu. Une valeur faible est meilleure. Ne pas dépasser la valeur maximale."><i class="fas fa-info-circle"></i></span>
@@ -427,23 +449,46 @@ mark.ngram {
 
                 <!-- Commander un guide -->
                 <div class="mb-6">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-xl font-semibold">Commander un guide</h2>
-                        <button id="toggle-guide" class="text-sm bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center focus:outline-none">+</button>
-                    </div>
-                    <div id="guide-content" class="mt-2 space-y-2 hidden">
+                    <h2 class="text-xl font-semibold mb-4">Commander un guide</h2>
+                    <div class="mt-2 space-y-2">
+                        <!-- Choix de l'API -->
+                        <div class="mb-3 hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Choisir l'API :</label>
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input type="radio" name="api-choice" value="thot" class="mr-2">
+                                    <span class="text-sm">API Thot</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="api-choice" value="slashr" checked class="mr-2">
+                                    <span class="text-sm">API Slashr</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Champ de recherche -->
                         <div class="flex">
                             <input type="text" id="guide-keywords" placeholder="Entrez un mot-clé" class="flex-grow p-2 border rounded-l">
-                            <button id="order-guide-button" class="bg-blue-500 text-white px-4 py-2 rounded-r">Commander un guide</button>
+                            <button id="order-guide-button" class="bg-blue-500 text-white px-4 py-2 rounded-r">Commander un guide Slashr</button>
                         </div>
+                        
+                        <!-- Options pour l'API Slashr -->
+                        <div id="slashr-options" class="mt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Localisation :</label>
+                            <select id="slashr-location" class="w-full p-2 border rounded">
+                                <option value="France">France</option>
+                                <option value="Belgique">Belgique</option>
+                                <option value="Suisse">Suisse</option>
+                                <option value="Canada">Canada</option>
+                            </select>
+                        </div>
+                        
                         <div class="mt-2">
                             <button id="load-default-data" class="bg-gray-500 text-white px-4 py-2 rounded w-full">Charger des données par défaut</button>
                         </div>
                         <div id="guide-status" class="hidden"></div>
                     </div>
                 </div>
-                
-                <!-- Section Intention de recherche supprimée -->
 
                 <!-- Mots-clés obligatoires -->
                 <div class="mb-6">
@@ -467,13 +512,7 @@ mark.ngram {
                     </div>
                 </div>
 
-                <!-- N-grams -->
-                <div class="mb-6">
-                    <h2 class="text-xl font-semibold mb-2">Expressions à utiliser</h2>
-                    <div class="mt-2 space-y-2" id="ngrams-list">
-                        <!-- Les n-grams seront ajoutés ici dynamiquement -->
-                    </div>
-                </div>
+             
                 
                 <!-- Espace réservé pour d'autres éléments si nécessaire -->
                 <div class="mb-6">
@@ -484,16 +523,22 @@ mark.ngram {
             <!-- Panneau de droite - Éditeur de contenu -->
             <div class="w-full md:w-2/3 bg-white rounded-lg shadow-md p-4 h-screen overflow-y-auto">
                 <div class="mb-4">
-                    <!-- Boutons de navigation supprimés -->
-                    
-                    <div class="border rounded-md mb-4">
-                        <input type="text" id="title-input" placeholder="Titre de votre article" class="w-full p-3 border-b">
+                    <div class="border rounded-lg mb-4 bg-white shadow-sm">
+                        <!-- Titre de l'article -->
+                        <div class="p-4 border-b border-gray-100">
+                            <input type="text" id="title-input" placeholder="Titre de votre article" 
+                                   class="w-full text-xl font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 rounded-md p-2 border border-gray-200">
+                        </div>
                         
-                        <!-- Première rangée de boutons de formatage -->
-                        <div class="flex flex-wrap border-b">
+                        <!-- Barre d'outils de formatage -->
+                        <div class="bg-gray-50 border-b border-gray-100">
+                            <!-- Première rangée de boutons -->
+                            <div class="flex flex-wrap items-center gap-1 p-2">
                             <!-- Titres -->
                             <div class="dropdown relative inline-block">
-                                <button id="heading-button" class="p-2 border-r hover:bg-gray-100" title="Titres">
+                                <button id="heading-button" 
+                                        class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                        title="Styles de titres (H1, H2, H3, H4) - Utilisez pour structurer votre contenu">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8" />
                                     </svg>
@@ -507,8 +552,13 @@ mark.ngram {
                                 </div>
                             </div>
                             
+                            <!-- Séparateur -->
+                            <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                            
                             <!-- Gras -->
-                            <button id="bold-button" class="p-2 border-r hover:bg-gray-100" title="Gras">
+                            <button id="bold-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Gras (Ctrl+B) - Met le texte sélectionné en gras pour l'emphase">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
                                     <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
@@ -516,7 +566,9 @@ mark.ngram {
                             </button>
                             
                             <!-- Italique -->
-                            <button id="italic-button" class="p-2 border-r hover:bg-gray-100" title="Italique">
+                            <button id="italic-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Italique (Ctrl+I) - Met le texte sélectionné en italique pour l'emphase subtile">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="19" y1="4" x2="10" y2="4"></line>
                                     <line x1="14" y1="20" x2="5" y2="20"></line>
@@ -525,7 +577,9 @@ mark.ngram {
                             </button>
                             
                             <!-- Souligné -->
-                            <button id="underline-button" class="p-2 border-r hover:bg-gray-100" title="Souligné">
+                            <button id="underline-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Souligné (Ctrl+U) - Souligne le texte sélectionné">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"></path>
                                     <line x1="4" y1="21" x2="20" y2="21"></line>
@@ -533,7 +587,9 @@ mark.ngram {
                             </button>
                             
                             <!-- Barré -->
-                            <button id="strikethrough-button" class="p-2 border-r hover:bg-gray-100" title="Barré">
+                            <button id="strikethrough-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Texte barré - Utile pour montrer des corrections ou du contenu obsolète">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M17 9V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v4"></path>
                                     <path d="M20 12H4"></path>
@@ -541,20 +597,27 @@ mark.ngram {
                                 </svg>
                             </button>
                             
+                            <!-- Séparateur -->
+                            <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                            
                             <!-- Liste à puces -->
-                            <button id="bullet-list-button" class="p-2 border-r hover:bg-gray-100" title="Liste à puces">
+                            <button id="bullet-list-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Liste à puces - Crée une liste non ordonnée pour organiser vos idées">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="8" y1="6" x2="21" y2="6"></line>
                                     <line x1="8" y1="12" x2="21" y2="12"></line>
                                     <line x1="8" y1="18" x2="21" y2="18"></line>
-                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                    <circle cx="4" cy="6" r="1"></circle>
+                                    <circle cx="4" cy="12" r="1"></circle>
+                                    <circle cx="4" cy="18" r="1"></circle>
                                 </svg>
                             </button>
                             
                             <!-- Liste numérotée -->
-                            <button id="numbered-list-button" class="p-2 border-r hover:bg-gray-100" title="Liste numérotée">
+                            <button id="numbered-list-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Liste numérotée - Crée une liste ordonnée pour des étapes ou un classement">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="10" y1="6" x2="21" y2="6"></line>
                                     <line x1="10" y1="12" x2="21" y2="12"></line>
@@ -565,15 +628,23 @@ mark.ngram {
                                 </svg>
                             </button>
                             
+                            <!-- Séparateur -->
+                            <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                            
                             <!-- Citation -->
-                            <button id="blockquote-button" class="p-2 border-r hover:bg-gray-100" title="Citation">
+                            <button id="blockquote-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Citation - Crée un bloc de citation pour mettre en valeur du contenu important">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path>
+                                    <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path>
                                 </svg>
                             </button>
                             
                             <!-- Lien -->
-                            <button id="link-button" class="p-2 border-r hover:bg-gray-100" title="Lien">
+                            <button id="link-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Lien hypertexte (Ctrl+K) - Ajoute un lien vers une autre page ou site web">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
@@ -581,7 +652,9 @@ mark.ngram {
                             </button>
                             
                             <!-- Image -->
-                            <button id="image-button" class="p-2 border-r hover:bg-gray-100" title="Image">
+                            <button id="image-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Image - Insère une image dans votre contenu">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -590,7 +663,9 @@ mark.ngram {
                             </button>
                             
                             <!-- Tableau -->
-                            <button id="table-button" class="p-2 hover:bg-gray-100" title="Tableau">
+                            <button id="table-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Tableau - Insère un tableau pour organiser des données">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <line x1="3" y1="9" x2="21" y2="9"></line>
@@ -601,10 +676,12 @@ mark.ngram {
                             </button>
                         </div>
                         
-                        <!-- Deuxième rangée de boutons de formatage -->
-                        <div class="flex border-b">
+                            <!-- Deuxième rangée de boutons -->
+                            <div class="flex items-center gap-1 p-2 border-t border-gray-200">
                             <!-- Annuler -->
-                            <button id="undo-button" class="p-2 border-r hover:bg-gray-100" title="Annuler">
+                            <button id="undo-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Annuler (Ctrl+Z) - Annule la dernière action effectuée">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M3 10h10a4 4 0 0 1 0 8H9"></path>
                                     <path d="M9 18l-6-6 6-6"></path>
@@ -612,15 +689,22 @@ mark.ngram {
                             </button>
                             
                             <!-- Rétablir -->
-                            <button id="redo-button" class="p-2 border-r hover:bg-gray-100" title="Rétablir">
+                            <button id="redo-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Rétablir (Ctrl+Y) - Rétablit la dernière action annulée">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M21 10H11a4 4 0 1 0 0 8h4"></path>
                                     <path d="M15 18l6-6-6-6"></path>
                                 </svg>
                             </button>
                             
+                            <!-- Séparateur -->
+                            <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                            
                             <!-- Code -->
-                            <button id="code-button" class="p-2 border-r hover:bg-gray-100" title="Code">
+                            <button id="code-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Code inline - Formate le texte comme du code informatique">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="16 18 22 12 16 6"></polyline>
                                     <polyline points="8 6 2 12 8 18"></polyline>
@@ -629,7 +713,9 @@ mark.ngram {
                             
                             <!-- Alignement -->
                             <div class="dropdown relative inline-block">
-                                <button id="align-button" class="p-2 border-r hover:bg-gray-100" title="Alignement">
+                                <button id="align-button" 
+                                        class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                        title="Alignement du texte - Choisissez l'alignement gauche, centre, droite ou justifié">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <line x1="21" y1="6" x2="3" y2="6"></line>
                                         <line x1="17" y1="12" x2="3" y2="12"></line>
@@ -644,1320 +730,35 @@ mark.ngram {
                                 </div>
                             </div>
                             
+                            <!-- Séparateur -->
+                            <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                            
                             <!-- Couleur du texte -->
-                            <button id="text-color-button" class="p-2 border-r hover:bg-gray-100" title="Couleur du texte">
+                            <button id="text-color-button" 
+                                    class="flex items-center justify-center w-9 h-9 rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-gray-600 hover:text-gray-900" 
+                                    title="Couleur du texte - Change la couleur du texte sélectionné">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M9 3h6v11h2v3h-4v-3h-4v-3h2z"></path>
-                                    <rect x="2" y="19" width="20" height="3" rx="1"></rect>
+                                    <rect x="2" y="19" width="20" height="3" rx="1" fill="currentColor"></rect>
                                 </svg>
                             </button>
+                        </div>
                         </div>
                     </div>
                     
                     <!-- Éditeur de contenu -->
-                    <div id="editor" class="border rounded-md p-4 min-h-[500px]" contenteditable="true"></div>
+                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div id="editor" 
+                             class="p-6 min-h-[500px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20 prose prose-lg max-w-none" 
+                             contenteditable="true"
+                             placeholder="Commencez à écrire votre contenu ici...">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // URL de l'API (à modifier selon l'environnement)
-        const API_URL = window.location.origin + window.location.pathname.replace(/\/$/, '');        
-        // Fonction pour extraire correctement les valeurs min et max d'un mot-clé
-        function extractMinMaxValues(keyword) {
-            // Format attendu de l'API Thot SEO : ["créatine",2,44]
-            // où 2 est le minimum et 44 est le maximum
-            if (Array.isArray(keyword) && keyword.length >= 3) {
-                return {
-                    keyword: keyword[0],
-                    min: parseInt(keyword[1], 10) || 0,
-                    max: parseInt(keyword[2], 10) || 0
-                };
-            }
-            return null;
-        }
-        
-        // Variables globales
-        let currentQuery = "whey ou creatine";
-        let editorTimeout = null;
-        let keywords = {
-            obligatoires: {},
-            complementaires: {}
-        };
-        let ngrams = [];
-        let marker = null;
-        let keywordData = [];
-        let optimizationChart = null;
-        let editor = null;
-
-        // Données par défaut pour le chargement rapide
-        const defaultData = {
-            "query": "whey ou creatine",
-            "score_target": 54,
-            "mots_requis": 1404,
-            "KW_obligatoires": [["créatine",2,44],["whey",1,35],["prise",1,33],["muscle",2,29],["complément",2,27],["masse",2,25],["bcaa",1,25],["protéine",5,20],["alimentaire",2,21],["musculaire",2,17],["effet",3,12],["récupération",1,14],["musculation",1,12],["produit",1,12],["acide",2,10],["aminé",2,10],["force",2,9],["énergie",1,11],["monohydrate",2,8],["poudre",2,9],["dose",1,8],["consommer",1,8],["effort",2,9],["jour",1,8],["shaker",1,7],["objectif",1,7],["source",1,7],["séance",2,7],["sport",1,6],["lait",1,5],["sportif",1,6],["endurance",1,5],["exemple",1,5],["étude",1,5],["corps",1,6],["consommation",1,5],["recommandée",2,4],["bienfait",1,5],["puissance",1,6],["apport",1,5],["graisse",1,6],["meilleure",1,3],["haute",1,4],["santé",2,3],["rôle",1,4]],
-            "KW_complementaires": [["pack",2,33],["collation",2,17],["taux",5,9],["substance",2,10],["point",1,11],["marque",4,6],["augmenter",2,8],["personne",1,8],["amélioration",1,8],["utilisé",1,8],["matin",2,8],["midi",2,8],["performance",2,7],["booster",1,7],["meilleur",1,7],["sportive",1,7],["développement",2,5],["prix",4,5],["gamme",1,7],["forme",2,6],["intense",2,7],["organisme",1,7],["court",2,7],["qualité",1,7],["profiter",1,7],["risque",1,7],["composition",2,7],["fabriqué",2,5],["choisir",2,4],["associer",2,4],["nutrition",2,4],["croissance",1,5],["isolate",1,4],["training",2,3],["eau",2,4],["bénéfique",1,5],["supplémentation",1,4],["dosage",1,6],["varié",2,4],["équilibré",2,4],["cadre",2,4],["essentiel",1,4],["temps",1,5],["existe",1,5],["aide",1,4],["premier",1,5],["charge",1,5],["association",2,5],["raison",1,5],["nutriment",1,5],["éviter",1,4],["haut",1,5],["dépasser",1,4],["développer",1,4],["volume",2,3],["lieu",1,5],["favoriser",1,6],["capacité",2,4],["apporte",1,5],["spécifique",1,4],["construction",2,4],["dérivée",1,4],["concentrée",1,4],["positif",1,5],["favorisant",1,5],["choix",2,3],["naturelle",2,4],["consommateur",2,4],["teneur",1,5],["goût",1,5],["formule",2,5],["format",2,4],["vie",2,4],["sain",2,4],["portée",2,4],["enfant",2,4],["sec",2,4],["marché",2,4],["forte",2,4],["conservation",2,4],["idéale",2,3],["apprécié",2,5],["partie",2,5],["supplément",1,4],["avantage",2,3],["creapure",2,3],["gramme",1,4],["utile",2,3],["première",1,2],["augmente",1,2],["contient",1,2],["repas",1,2],["lactosérum",1,2],["monde",1,2],["pratiquant",1,3],["intensité",1,4],["gain",2,3],["rapide",2,3],["article",1,2]],
-            "ngrams": "grammes de créatine;lait de vache;synthèse des protéines;phase de charge;récupération musculaire;développement musculaire;protéine de lactosérum;créatine par jour;protéines de lactosérum;créatine augmente;force musculaire;nutrition sportive;whey et de créatine;grande quantité;régime alimentaire;sport nutrition;whey ou créatine;prise de muscle;supplémentation en créatine;protéine complète;courte durée;prise de masse musculaire;créatine et la whey;prenant de la créatine;adénosine triphosphate;apport protéique;prise de créatine;complément alimentaire;explosivité musculaire;augmentation de la masse;whey protein;masse maigre;prise de poids;protéine whey;construction musculaire;fonction rénale;augmentation de la force;créatine et la protéine;joue un rôle;jouent un rôle;whey isolat native;haute qualité;créatine monohydrate;faible teneur;whey isolate native;mode de vie sain;croissance musculaire;volume musculaire;protéine en poudre;petit lait;hypertrophie musculaire;haute intensité",
-            "max_suroptimisation": 5
-        };
-        
-        // Initialisation de l'application
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM chargé, initialisation de l\'application');
-            
-            // Initialiser mark.js pour le surlignage
-            marker = new Mark(document.getElementById("editor"));
-            
-            // Charger les données initiales
-            loadInitialData();
-            
-            // Ajouter les écouteurs d'événements
-            setupEventListeners();
-            
-            // Initialiser l'éditeur de texte enrichi
-            initTextEditor();
-            
-            // Initialiser le graphique d'optimisation
-            initOptimizationChart();
-        });
-
-        // Charger les données initiales (simuler une requête API)
-        function loadInitialData() {
-            fetch(`${API_URL}/analyze`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text: '',
-                    query: currentQuery
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Données reçues de l\'API:', data);
-                
-                // Stocker les mots-clés
-                updateKeywordsData(data);
-                
-                // Mettre à jour l'interface
-                updateKeywordLists();
-                updateStatistics(data);
-                
-                // Mettre à jour le graphique
-                updateOptimizationChart();
-            })
-            .catch(error => {
-                console.error('Erreur lors du chargement des données:', error);
-            });
-        }
-
-        // Configurer les écouteurs d'événements
-        function setupEventListeners() {
-            console.log('Configuration des écouteurs d\'événements');
-            
-            // Écouter les changements dans l'éditeur
-            const editor = document.getElementById('editor');
-            editor.addEventListener('input', function() {
-                // Utiliser un délai pour éviter trop d'appels API
-                clearTimeout(editorTimeout);
-                editorTimeout = setTimeout(function() {
-                    analyzeText(editor.textContent);
-                }, 500);
-            });
-            
-            // Gérer le collage de texte pour s'assurer qu'il reste dans l'éditeur
-            editor.addEventListener('paste', function(e) {
-                e.preventDefault();
-                
-                // Récupérer le texte brut du presse-papiers
-                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-                
-                // Insérer le texte à la position du curseur
-                document.execCommand('insertText', false, text);
-                
-                // Analyser le texte après un court délai
-                clearTimeout(editorTimeout);
-                editorTimeout = setTimeout(function() {
-                    analyzeText(editor.textContent);
-                }, 500);
-            });
-            
-            // Écouter les clics sur le bouton de commande de guide
-            document.querySelector('#toggle-guide').onclick = function() {
-                console.log('Clic sur le bouton toggle-guide');
-                const guideContent = document.getElementById('guide-content');
-                if (guideContent.classList.contains('hidden')) {
-                    guideContent.classList.remove('hidden');
-                    this.textContent = '-';
-                } else {
-                    guideContent.classList.add('hidden');
-                    this.textContent = '+';
-                }
-            };
-            
-            // Écouter les clics sur le bouton de commande de guide
-            document.querySelector('#order-guide-button').onclick = function() {
-                console.log('Clic sur le bouton order-guide-button');
-                orderGuide();
-            };
-            
-            // Écouter les clics sur le bouton de chargement des données par défaut
-            document.querySelector('#load-default-data').onclick = function() {
-                console.log('Clic sur le bouton load-default-data');
-                loadDefaultData();
-            };
-            
-            // Écouter les clics sur le bouton d'intention de recherche
-            document.querySelector('#toggle-intention').onclick = function() {
-                console.log('Clic sur le bouton toggle-intention');
-                const intentionContent = document.getElementById('intention-content');
-                if (intentionContent.classList.contains('hidden')) {
-                    intentionContent.classList.remove('hidden');
-                    this.textContent = '-';
-                } else {
-                    intentionContent.classList.add('hidden');
-                    this.textContent = '+';
-                }
-            };
-            
-            // Écouter les clics sur le bouton de recherche
-            document.getElementById('search-button').addEventListener('click', function() {
-                const query = document.getElementById('search-query').value.trim();
-                if (query) {
-                    currentQuery = query;
-                    loadInitialData();
-                }
-            });
-        }
-
-        // Analyser le texte et mettre à jour l'interface
-        function analyzeText(text) {
-            // Analyser le texte localement pour les mots-clés
-            const text_lower = text.toLowerCase();
-            const words = text_lower.split(/\s+/);
-            
-            // Réinitialiser les données du graphique
-            keywordData = [];
-            
-            // Compter les occurrences des mots-clés obligatoires
-            for (const [keyword, data] of Object.entries(keywords.obligatoires)) {
-                let count = 0;
-                const keywordLower = keyword.toLowerCase();
-                
-                for (const word of words) {
-                    if (word === keywordLower) {
-                        count++;
-                    }
-                }
-                
-                keywords.obligatoires[keyword].count = count;
-                keywords.obligatoires[keyword].completed = count >= data.minRequired;
-                
-                // Ajouter les données pour le graphique
-                // Utiliser minRequired pour déterminer si le mot-clé est complété
-                const importance = data.importance;
-                
-                // Garder les données complètes pour le calcul du ratio dans le graphique
-                
-                keywordData.push({
-                    keyword: keyword,
-                    count: count,
-                    required: data.required, // Format "min,max"
-                    minRequired: data.minRequired,
-                    maxRequired: data.maxRequired,
-                    importance: importance,
-                    type: 'obligatoire'
-                });
-            }
-            
-            // Compter les occurrences des mots-clés complémentaires
-            for (const [keyword, data] of Object.entries(keywords.complementaires)) {
-                let count = 0;
-                const keywordLower = keyword.toLowerCase();
-                
-                for (const word of words) {
-                    if (word === keywordLower) {
-                        count++;
-                    }
-                }
-                
-                keywords.complementaires[keyword].count = count;
-                keywords.complementaires[keyword].completed = count >= data.minRequired;
-                
-                // Ajouter les données pour le graphique
-                const importance = data.importance;
-                
-                keywordData.push({
-                    keyword: keyword,
-                    count: count,
-                    required: data.required, // Format "min,max"
-                    minRequired: data.minRequired,
-                    maxRequired: data.maxRequired,
-                    importance: importance,
-                    type: 'complementaire'
-                });
-            }
-            
-            // Vérifier les n-grams
-            const ngrams_found = [];
-            const allNgrams = document.querySelector('#editor').getAttribute('data-ngrams') || '';
-            const ngramArray = allNgrams.split(';').filter(ng => ng.trim());
-            
-            for (const ngram of ngramArray) {
-                if (text_lower.includes(ngram.toLowerCase())) {
-                    ngrams_found.push(ngram);
-                }
-            }
-            
-            ngrams = ngrams_found;
-            
-            // Calculer les statistiques
-            const wordCount = words.length;
-            const motsRequis = parseInt(document.getElementById('mots-requis').textContent) || 0;
-            
-            // Calculer le score SEO basé sur les mots-clés obligatoires
-            const totalKwObligatoires = Object.keys(keywords.obligatoires).length;
-            
-            // Calcul pondéré du score SEO en fonction du nombre de fois que chaque mot-clé est utilisé
-            let scoreTotal = 0;
-            let scoreMaxPossible = 0;
-            
-            for (const [keyword, data] of Object.entries(keywords.obligatoires)) {
-                const minRequired = data.minRequired || 0;
-                const count = data.count || 0;
-                
-                // Calculer le score pour ce mot-clé (plafonné au minimum requis)
-                const keywordScore = Math.min(count, minRequired);
-                scoreTotal += keywordScore;
-                scoreMaxPossible += minRequired;
-            }
-            
-            // Calculer le score SEO en pourcentage
-            const scoreSeo = scoreMaxPossible > 0 ? Math.round((scoreTotal / scoreMaxPossible) * 100) : 0;
-            
-            // Calculer le pourcentage des 200 premiers mots
-            const premiersMotsCount = Math.min(wordCount, 200);
-            
-            // Compter les mots-clés dans les 200 premiers mots
-            const premiersMotsText = text.split(/\s+/).slice(0, 200).join(' ').toLowerCase();
-            let kwDansPremiersMotsCount = 0;
-            
-            for (const keyword of Object.keys(keywords.obligatoires)) {
-                const regex = new RegExp('\\b' + escapeRegExp(keyword.toLowerCase()) + '\\b', 'g');
-                const matches = premiersMotsText.match(regex);
-                if (matches) {
-                    kwDansPremiersMotsCount += matches.length;
-                }
-            }
-            
-            // Calculer le pourcentage de mots-clés dans les 200 premiers mots
-            // Objectif: au moins 2% des 200 premiers mots devraient être des mots-clés
-            const premiersMotsTarget = 4; // 2% de 200 mots = 4 mots-clés
-            const premiersMotsPercent = Math.min(100, Math.round((kwDansPremiersMotsCount / premiersMotsTarget) * 100));
-            
-            // Calculer le score de suroptimisation
-            // Vérifier si des mots-clés sont utilisés plus que leur maximum recommandé
-            let suroptimisationScore = 0;
-            let totalSuroptimises = 0;
-            
-            for (const [keyword, data] of Object.entries(keywords.obligatoires)) {
-                const maxRequired = data.maxRequired || (data.minRequired * 2);
-                const count = data.count || 0;
-                
-                if (count > maxRequired) {
-                    totalSuroptimises += 1;
-                    suroptimisationScore += (count - maxRequired) / maxRequired;
-                }
-            }
-            
-            // Convertir le score de suroptimisation en pourcentage
-            const maxSuroptimisation = parseInt(document.getElementById('max-suroptimisation').textContent) || 5;
-            const suroptimisationPercent = Math.min(100, Math.round((suroptimisationScore * 100) / maxSuroptimisation));
-            
-            // Mettre à jour l'interface
-            updateKeywordLists();
-            updateStatistics({
-                score_seo: scoreSeo,
-                word_count: wordCount,
-                mots_requis: motsRequis,
-                premiers_mots: {
-                    count: kwDansPremiersMotsCount,
-                    target: premiersMotsTarget
-                },
-                suroptimisation: suroptimisationPercent,
-                max_suroptimisation: maxSuroptimisation
-            });
-            highlightKeywords();
-            
-            // Mettre à jour le graphique d'optimisation
-            updateOptimizationChart();
-        }
-
-        // Mettre à jour les données des mots-clés
-        function updateKeywordsData(data) {
-            console.log('Mise à jour des données de mots-clés:', data);
-            
-            // Mots-clés obligatoires
-            keywords.obligatoires = {};
-            if (data.KW_obligatoires && Array.isArray(data.KW_obligatoires)) {
-                console.log('Mots-clés obligatoires:', data.KW_obligatoires);
-                data.KW_obligatoires.forEach(kw => {
-                    const kwData = extractMinMaxValues(kw);
-                    if (kwData) {
-                        const keyword = kwData.keyword;
-                        const minRequired = kwData.min;
-                        const maxRequired = kwData.max;
-                        const count = 0; // Sera mis à jour lors de l'analyse du texte
-                        
-                        keywords.obligatoires[keyword] = {
-                            count: count,
-                            required: `${minRequired},${maxRequired}`, // Format "min,max" pour utilisation ultérieure
-                            minRequired: minRequired,
-                            maxRequired: maxRequired,
-                            importance: maxRequired, // Utiliser maxRequired comme importance pour le tri
-                            completed: count >= minRequired
-                        };
-                    } else {
-                        console.warn('Format de mot-clé obligatoire invalide:', kw);
-                    }
-                });
-            } else {
-                console.warn('Aucun mot-clé obligatoire trouvé ou format invalide');
-            }
-            
-            // Mots-clés complémentaires
-            keywords.complementaires = {};
-            if (data.KW_complementaires && Array.isArray(data.KW_complementaires)) {
-                data.KW_complementaires.forEach(kw => {
-                    const kwData = extractMinMaxValues(kw);
-                    if (kwData) {
-                        const keyword = kwData.keyword;
-                        const minRequired = kwData.min;
-                        const maxRequired = kwData.max;
-                        const count = 0; // Sera mis à jour lors de l'analyse du texte
-                        
-                        keywords.complementaires[keyword] = {
-                            count: count,
-                            required: `${minRequired},${maxRequired}`, // Format "min,max" pour utilisation ultérieure
-                            minRequired: minRequired,
-                            maxRequired: maxRequired,
-                            importance: maxRequired, // Utiliser maxRequired comme importance pour le tri
-                            completed: count >= minRequired
-                        };
-                    } else {
-                        console.warn('Format de mot-clé complémentaire invalide:', kw);
-                    }
-                });
-            }
-            
-            // N-grams
-            if (data.ngrams) {
-                const ngramList = typeof data.ngrams === 'string' ? data.ngrams.split(';') : data.ngrams;
-                document.getElementById('editor').setAttribute('data-ngrams', ngramList.join(';'));
-            }
-            
-            // Mettre à jour les statistiques globales
-            if (data.mots_requis) {
-                document.getElementById('mots-requis').textContent = data.mots_requis;
-            }
-            
-            if (data.score_target) {
-                document.getElementById('kw-obligatoires-count').textContent = data.score_target;
-            }
-            
-            if (data.max_suroptimisation) {
-                document.getElementById('max-suroptimisation').textContent = data.max_suroptimisation;
-            }
-        }
-
-        // Mettre à jour les listes de mots-clés dans l'interface
-        function updateKeywordLists() {
-            // Mettre à jour la liste des mots-clés obligatoires
-            const kwObligatoiresList = document.getElementById('kw-obligatoires-list');
-            kwObligatoiresList.innerHTML = '';
-            
-            let completedObligatoires = 0;
-            let totalObligatoires = Object.keys(keywords.obligatoires).length;
-            
-            for (const [keyword, data] of Object.entries(keywords.obligatoires)) {
-                if (data.completed) {
-                    completedObligatoires++;
-                }
-                
-                const keywordItem = document.createElement('div');
-                keywordItem.className = 'keyword-item';
-                keywordItem.innerHTML = `
-                    <span class="keyword-count ${data.completed ? 'completed' : ''}">${data.count}</span>
-                    <span class="keyword-text ${data.completed ? 'completed' : ''}">${keyword}</span>
-                    <span class="keyword-required" title="Min: ${data.minRequired}, Max: ${data.maxRequired}">${data.minRequired}-${data.maxRequired}</span>
-                `;
-                kwObligatoiresList.appendChild(keywordItem);
-            }
-            
-            // Mettre à jour le résumé des mots-clés obligatoires
-            document.getElementById('kw-obligatoires-summary').textContent = `${completedObligatoires}/${totalObligatoires}`;
-            
-            // Mettre à jour la liste des mots-clés complémentaires
-            const kwComplementairesList = document.getElementById('kw-complementaires-list');
-            kwComplementairesList.innerHTML = '';
-            
-            let completedComplementaires = 0;
-            let totalComplementaires = Object.keys(keywords.complementaires).length;
-            
-            for (const [keyword, data] of Object.entries(keywords.complementaires)) {
-                if (data.completed) {
-                    completedComplementaires++;
-                }
-                
-                const keywordItem = document.createElement('div');
-                keywordItem.className = 'keyword-item';
-                keywordItem.innerHTML = `
-                    <span class="keyword-count ${data.completed ? 'completed' : ''}">${data.count}</span>
-                    <span class="keyword-text ${data.completed ? 'completed' : ''}">${keyword}</span>
-                    <span class="keyword-required" title="Min: ${data.minRequired}, Max: ${data.maxRequired}">${data.minRequired}-${data.maxRequired}</span>
-                `;
-                kwComplementairesList.appendChild(keywordItem);
-            }
-            
-            // Mettre à jour le résumé des mots-clés complémentaires
-            document.getElementById('kw-complementaires-summary').textContent = `${completedComplementaires}/${totalComplementaires}`;
-            
-            // Mettre à jour la liste des n-grams
-            const ngramsList = document.getElementById('ngrams-list');
-            ngramsList.innerHTML = '';
-            
-            // Récupérer tous les n-grams depuis l'API
-            const allNgrams = document.querySelector('#editor').getAttribute('data-ngrams') || '';
-            const ngramArray = allNgrams.split(';').filter(ng => ng.trim());
-            
-            for (const ngram of ngramArray) {
-                const ngramItem = document.createElement('span');
-                ngramItem.className = `ngram-item ${ngrams.includes(ngram) ? 'found' : ''}`;
-                ngramItem.textContent = ngram;
-                ngramsList.appendChild(ngramItem);
-            }
-        }
-
-        // Mettre à jour les statistiques
-        function updateStatistics(data) {
-            // Score SEO
-            const scoreSeoElement = document.getElementById('score-seo');
-            scoreSeoElement.textContent = `${data.score_seo}%`;
-            
-            // Mise à jour de la couleur du score SEO en fonction de sa valeur
-            if (data.score_seo >= 80) {
-                scoreSeoElement.className = 'text-2xl font-bold text-green-600'; // Excellent
-            } else if (data.score_seo >= 60) {
-                scoreSeoElement.className = 'text-2xl font-bold text-blue-600'; // Bon
-            } else if (data.score_seo >= 40) {
-                scoreSeoElement.className = 'text-2xl font-bold text-yellow-600'; // Moyen
-            } else {
-                scoreSeoElement.className = 'text-2xl font-bold text-red-600'; // À améliorer
-            }
-            
-            // 200 premiers mots
-            const premiersMotsElement = document.getElementById('premiers-mots-percent');
-            premiersMotsElement.textContent = `${data.premiers_mots.count}/${data.premiers_mots.target}`;
-            
-            // Mise à jour de la couleur du score des 200 premiers mots
-            const premiersMotsPercent = Math.min(100, Math.round((data.premiers_mots.count / data.premiers_mots.target) * 100));
-            if (premiersMotsPercent >= 100) {
-                premiersMotsElement.className = 'text-2xl font-bold text-green-600'; // Excellent
-            } else if (premiersMotsPercent >= 75) {
-                premiersMotsElement.className = 'text-2xl font-bold text-blue-600'; // Bon
-            } else if (premiersMotsPercent >= 50) {
-                premiersMotsElement.className = 'text-2xl font-bold text-yellow-600'; // Moyen
-            } else {
-                premiersMotsElement.className = 'text-2xl font-bold text-red-600'; // À améliorer
-            }
-            
-            // Suroptimisation
-            const suroptimisationElement = document.getElementById('suroptimisation');
-            suroptimisationElement.textContent = `${data.suroptimisation}%`;
-            document.getElementById('max-suroptimisation').textContent = data.max_suroptimisation;
-            
-            // Mise à jour de la couleur du score de suroptimisation (plus c'est bas, mieux c'est)
-            if (data.suroptimisation <= 20) {
-                suroptimisationElement.className = 'text-2xl font-bold text-green-600'; // Excellent
-            } else if (data.suroptimisation <= 50) {
-                suroptimisationElement.className = 'text-2xl font-bold text-blue-600'; // Bon
-            } else if (data.suroptimisation <= 80) {
-                suroptimisationElement.className = 'text-2xl font-bold text-yellow-600'; // Attention
-            } else {
-                suroptimisationElement.className = 'text-2xl font-bold text-red-600'; // Problème
-            }
-            
-            // Nombre de mots
-            const wordCountElement = document.getElementById('word-count');
-            wordCountElement.textContent = data.word_count;
-            document.getElementById('mots-requis').textContent = data.mots_requis;
-            document.getElementById('mots-restants').textContent = Math.max(0, data.mots_requis - data.word_count);
-            
-            // Mise à jour de la couleur du nombre de mots
-            const wordCountPercent = Math.min(100, Math.round((data.word_count / data.mots_requis) * 100));
-            if (wordCountPercent >= 100) {
-                wordCountElement.className = 'text-2xl font-bold text-green-600'; // Excellent
-            } else if (wordCountPercent >= 75) {
-                wordCountElement.className = 'text-2xl font-bold text-blue-600'; // Bon
-            } else if (wordCountPercent >= 50) {
-                wordCountElement.className = 'text-2xl font-bold text-yellow-600'; // Moyen
-            } else {
-                wordCountElement.className = 'text-2xl font-bold text-red-600'; // À améliorer
-            }
-            
-            // Stocker les n-grams dans un attribut data pour référence future
-            document.getElementById('editor').setAttribute('data-ngrams', data.ngrams || '');
-        }
-
-        // Surligner les mots-clés dans l'éditeur
-        function highlightKeywords() {
-            // Effacer les surlignages précédents
-            marker.unmark();
-            
-            // Surligner les mots-clés obligatoires
-            for (const keyword of Object.keys(keywords.obligatoires)) {
-                marker.mark(keyword, {
-                    className: 'obligatoire',
-                    accuracy: 'exactly',
-                    separateWordSearch: false
-                });
-            }
-            
-            // Surligner les mots-clés complémentaires
-            for (const keyword of Object.keys(keywords.complementaires)) {
-                marker.mark(keyword, {
-                    className: 'complementaire',
-                    accuracy: 'exactly',
-                    separateWordSearch: false
-                });
-            }
-            
-            // Surligner les n-grams trouvés
-            for (const ngram of ngrams) {
-                marker.mark(ngram, {
-                    className: 'ngram',
-                    accuracy: 'exactly',
-                    separateWordSearch: false
-                });
-            }
-        }
-
-        // Initialiser les fonctionnalités d'édition de texte
-        function initTextEditor() {
-            // Boutons de formatage
-            document.getElementById('bold-button').addEventListener('click', () => execFormatCommand('bold'));
-            document.getElementById('italic-button').addEventListener('click', () => execFormatCommand('italic'));
-            document.getElementById('underline-button').addEventListener('click', () => execFormatCommand('underline'));
-            document.getElementById('strikethrough-button').addEventListener('click', () => execFormatCommand('strikeThrough'));
-            document.getElementById('bullet-list-button').addEventListener('click', () => execFormatCommand('insertUnorderedList'));
-            document.getElementById('numbered-list-button').addEventListener('click', () => execFormatCommand('insertOrderedList'));
-            document.getElementById('blockquote-button').addEventListener('click', () => formatBlockquote());
-            document.getElementById('link-button').addEventListener('click', () => createLink());
-            document.getElementById('image-button').addEventListener('click', () => insertImage());
-            document.getElementById('table-button').addEventListener('click', () => insertTable());
-            document.getElementById('code-button').addEventListener('click', () => insertCode());
-            document.getElementById('undo-button').addEventListener('click', () => execFormatCommand('undo'));
-            document.getElementById('redo-button').addEventListener('click', () => execFormatCommand('redo'));
-            
-            // Menus déroulants
-            document.getElementById('heading-button').addEventListener('click', toggleDropdown('heading-dropdown'));
-            document.getElementById('align-button').addEventListener('click', toggleDropdown('align-dropdown'));
-            
-            // Boutons de titres
-            const headingButtons = document.querySelectorAll('#heading-dropdown button');
-            headingButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const format = this.getAttribute('data-format');
-                    formatHeading(format);
-                    document.getElementById('heading-dropdown').classList.remove('show');
-                });
-            });
-            
-            // Boutons d'alignement
-            const alignButtons = document.querySelectorAll('#align-dropdown button');
-            alignButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const align = this.getAttribute('data-align');
-                    execFormatCommand('justify' + align.charAt(0).toUpperCase() + align.slice(1));
-                    document.getElementById('align-dropdown').classList.remove('show');
-                });
-            });
-            
-            // Couleur du texte
-            document.getElementById('text-color-button').addEventListener('click', () => changeTextColor());
-            
-            // Fermer les menus déroulants quand on clique ailleurs
-            document.addEventListener('click', function(event) {
-                const dropdowns = document.querySelectorAll('.dropdown-content');
-                dropdowns.forEach(dropdown => {
-                    if (!event.target.closest('.dropdown') && dropdown.classList.contains('show')) {
-                        dropdown.classList.remove('show');
-                    }
-                });
-            });
-        }
-        
-        // Exécuter une commande de formatage
-        function execFormatCommand(command, value = null) {
-            document.execCommand(command, false, value);
-            document.getElementById('editor').focus();
-        }
-        
-        // Formatter un titre
-        function formatHeading(format) {
-            if (format === 'p') {
-                execFormatCommand('formatBlock', '<p>');
-            } else {
-                execFormatCommand('formatBlock', '<' + format + '>');
-            }
-        }
-        
-        // Formatter une citation
-        function formatBlockquote() {
-            execFormatCommand('formatBlock', '<blockquote>');
-        }
-        
-        // Créer un lien
-        function createLink() {
-            const url = prompt('Entrez l\'URL du lien:', 'http://');
-            if (url) {
-                execFormatCommand('createLink', url);
-            }
-        }
-        
-        // Insérer une image
-        function insertImage() {
-            const url = prompt('Entrez l\'URL de l\'image:', 'http://');
-            if (url) {
-                execFormatCommand('insertImage', url);
-            }
-        }
-        
-        // Insérer un tableau
-        function insertTable() {
-            const rows = prompt('Nombre de lignes:', '3');
-            const cols = prompt('Nombre de colonnes:', '3');
-            
-            if (rows && cols) {
-                let table = '<table><tbody>';
-                for (let i = 0; i < parseInt(rows); i++) {
-                    table += '<tr>';
-                    for (let j = 0; j < parseInt(cols); j++) {
-                        if (i === 0) {
-                            table += '<th>Titre ' + (j + 1) + '</th>';
-                        } else {
-                            table += '<td>Cellule ' + (i + 1) + '-' + (j + 1) + '</td>';
-                        }
-                    }
-                    table += '</tr>';
-                }
-                table += '</tbody></table>';
-                
-                execFormatCommand('insertHTML', table);
-            }
-        }
-        
-        // Insérer du code
-        function insertCode() {
-            const selection = window.getSelection().toString();
-            const code = '<code>' + (selection || 'code') + '</code>';
-            execFormatCommand('insertHTML', code);
-        }
-        
-        // Changer la couleur du texte
-        function changeTextColor() {
-            const color = prompt('Entrez une couleur (nom ou code hexadécimal):', '#3b82f6');
-            if (color) {
-                execFormatCommand('foreColor', color);
-            }
-        }
-        
-        // Fonction pour basculer l'affichage d'un menu déroulant
-        function toggleDropdown(id) {
-            return function() {
-                document.getElementById(id).classList.toggle('show');
-            };
-        }
-        
-        // Commander un guide à partir d'un mot-clé
-        // Charger des données par défaut sans appeler l'API
-        function loadDefaultData() {
-            console.log('Chargement des données par défaut');
-            
-            // Afficher le statut
-            const guideStatus = document.getElementById('guide-status');
-            guideStatus.classList.remove('hidden');
-            guideStatus.innerHTML = '<div class="text-blue-500">Chargement des données par défaut...</div>';
-            
-            try {
-                // Utiliser les données par défaut prédéfinies
-                console.log('Utilisation des données par défaut prédéfinies');
-                
-                // Mettre à jour le statut
-                guideStatus.innerHTML = '<div class="text-green-500">Données par défaut chargées avec succès !</div>';
-                
-                // Mettre à jour la requête actuelle
-                currentQuery = defaultData.query;
-                
-                // Mettre à jour directement les données
-                updateKeywordsData(defaultData);
-                updateKeywordLists();
-                updateStatistics(defaultData);
-                updateOptimizationChart();
-                
-                // Analyser le texte actuel avec les nouveaux mots-clés
-                const editor = document.getElementById('editor');
-                if (editor) {
-                    analyzeText(editor.textContent);
-                }
-                
-                // Fermer la section de commande après un court délai
-                setTimeout(() => {
-                    document.getElementById('guide-content').classList.add('hidden');
-                    document.getElementById('toggle-guide').textContent = '+';
-                }, 3000);
-            } catch (error) {
-                console.error('Erreur lors du chargement des données par défaut:', error);
-                guideStatus.innerHTML = `<div class="text-red-500">Erreur: ${error.message}</div>`;
-            }
-        }
-        
-        function orderGuide() {
-            const keywords = document.getElementById('guide-keywords').value.trim();
-            if (!keywords) {
-                alert('Veuillez entrer un mot-clé');
-                return;
-            }
-            
-            // Afficher le statut
-            const guideStatus = document.getElementById('guide-status');
-            guideStatus.classList.remove('hidden');
-            guideStatus.innerHTML = '<div class="text-blue-500">Commande en cours...</div>';
-            
-            // Envoyer la requête à l'API
-            fetch(`${API_URL}/order-guide`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    keywords: keywords
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Guide commandé avec succès:', data);
-                
-                // Mettre à jour le statut
-                guideStatus.innerHTML = '<div class="text-green-500">Guide commandé avec succès !</div>';
-                
-                // Mettre à jour la requête actuelle
-                currentQuery = keywords;
-                
-                // Mettre à jour directement les données sans passer par loadInitialData
-                updateKeywordsData(data);
-                updateKeywordLists();
-                updateStatistics(data);
-                updateOptimizationChart();
-                
-                // Analyser le texte actuel avec les nouveaux mots-clés
-                const editor = document.getElementById('editor');
-                if (editor) {
-                    analyzeText(editor.textContent);
-                }
-                
-                // Fermer la section de commande
-                setTimeout(() => {
-                    document.getElementById('guide-content').classList.add('hidden');
-                    document.getElementById('toggle-guide').textContent = '+';
-                }, 3000);
-            })
-            .catch(error => {
-                console.error('Erreur lors de la commande du guide:', error);
-                guideStatus.innerHTML = `<div class="text-red-500">Erreur: ${error.message}</div>`;
-            });
-        }
-        
-        // Variables globales pour le graphique
-        let displayData = [];
-        let highlightedPoint = null;
-        
-        // Initialiser le graphique d'optimisation avec ApexCharts
-        function initOptimizationChart() {
-            const options = {
-                series: [{
-                    name: 'Votre contenu',
-                    data: []
-                }],
-                chart: {
-                    height: 280,
-                    type: 'line',
-                    toolbar: {
-                        show: false
-                    },
-                    animations: {
-                        enabled: true,
-                        easing: 'easeinout',
-                        speed: 800
-                    },
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    background: 'transparent',
-                    parentHeightOffset: 0,
-                    sparkline: {
-                        enabled: false
-                    }
-                },
-                plotOptions: {
-                    line: {
-                        offsetX: 0
-                    }
-                },
-                stroke: {
-                    width: 2,
-                    curve: 'straight'
-                },
-                colors: ['#000000'],
-                markers: {
-                    size: 4,
-                    colors: ['#000000'],
-                    strokeWidth: 0,
-                    hover: {
-                        size: 6
-                    }
-                },
-                grid: {
-                    show: true,
-                    borderColor: '#f1f1f1',
-                    strokeDashArray: 3,
-                    position: 'back',
-                    padding: {
-                        left: 10,
-                        right: 10,
-                        top: 10,
-                        bottom: 10
-                    }
-                },
-                annotations: {
-                    position: 'front',
-                    yaxis: [
-                        {
-                            y: 0,
-                            y2: 1.0,
-                            borderColor: '#90cdf4',
-                            fillColor: 'rgba(147, 197, 253, 0.5)',
-                            label: {
-                                text: '',
-                                position: 'left',
-                                offsetX: 0,
-                                offsetY: 0,
-                                style: {
-                                    background: 'transparent',
-                                    color: 'transparent',
-                                    fontSize: '0px',
-                                    fontWeight: 0,
-                                    padding: {
-                                        left: 0,
-                                        right: 0,
-                                        top: 0,
-                                        bottom: 0
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            y: 1.0,
-                            y2: 1.5,
-                            borderColor: '#9ae6b4',
-                            fillColor: 'rgba(74, 222, 128, 0.5)',
-                            label: {
-                                text: '',
-                                position: 'left',
-                                offsetX: 0,
-                                offsetY: 0,
-                                style: {
-                                    background: 'transparent',
-                                    color: 'transparent',
-                                    fontSize: '0px',
-                                    fontWeight: 0,
-                                    padding: {
-                                        left: 0,
-                                        right: 0,
-                                        top: 0,
-                                        bottom: 0
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            y: 1.5,
-                            y2: 2.0,
-                            borderColor: '#fbd38d',
-                            fillColor: 'rgba(251, 191, 36, 0.5)',
-                            label: {
-                                text: '',
-                                position: 'left',
-                                offsetX: 0,
-                                offsetY: 0,
-                                style: {
-                                    background: 'transparent',
-                                    color: 'transparent',
-                                    fontSize: '0px',
-                                    fontWeight: 0,
-                                    padding: {
-                                        left: 0,
-                                        right: 0,
-                                        top: 0,
-                                        bottom: 0
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            y: 2.0,
-                            y2: 2.5,
-                            borderColor: '#feb2b2',
-                            fillColor: 'rgba(239, 68, 68, 0.5)',
-                            label: {
-                                text: '',
-                                position: 'left',
-                                offsetX: 0,
-                                offsetY: 0,
-                                style: {
-                                    background: 'transparent',
-                                    color: 'transparent',
-                                    fontSize: '0px',
-                                    fontWeight: 0,
-                                    padding: {
-                                        left: 0,
-                                        right: 0,
-                                        top: 0,
-                                        bottom: 0
-                                    }
-                                }
-                            }
-                        }
-                    ]
-                },
-                xaxis: {
-                    categories: [],
-                    labels: {
-                        rotate: -45,
-                        style: {
-                            fontSize: '10px',
-                            fontWeight: 400
-                        },
-                        formatter: function(value) {
-                            // Raccourcir les mots-clés trop longs
-                            if (value.length > 10) {
-                                return value.substring(0, 10) + '...';
-                            }
-                            return value;
-                        },
-                        offsetX: 2,
-                        offsetY: 0
-                    },
-                    tickPlacement: 'on',
-                    axisBorder: {
-                        show: false
-                    },
-                    axisTicks: {
-                        show: false
-                    },
-                    padding: {
-                        left: 10,
-                        right: 10
-                    }
-                },
-                yaxis: {
-                    min: 0,
-                    max: 2.5,
-                    labels: {
-                        show: false
-                    }
-                },
-                tooltip: {
-                    enabled: true,
-                    shared: false,
-                    intersect: true,
-                    custom: function({ series, seriesIndex, dataPointIndex, w }) {
-                        const keyword = w.globals.labels[dataPointIndex];
-                        const value = series[seriesIndex][dataPointIndex];
-                        const ratio = Math.round(value * 100);
-                        
-                        // Trouver les données complètes du mot-clé
-                        const fullData = displayData.find(item => item.keyword === keyword || 
-                                                           (item.keyword.length > 10 && keyword === item.keyword.substring(0, 10) + '...'));
-                        
-                        if (fullData) {
-                            // Utiliser directement les propriétés minRequired et maxRequired
-                            let minCount = fullData.minRequired || 0;
-                            let maxCount = fullData.maxRequired || 0;
-                            let rangeText = '';
-                            let zoneText = '';
-                            
-                            // Construire le texte d'affichage pour la plage
-                            if (minCount > 0 && maxCount > 0) {
-                                rangeText = `${minCount}-${maxCount}`;
-                            } else if (minCount > 0) {
-                                rangeText = `${minCount}`;
-                            }
-                            
-                            // Déterminer la zone d'optimisation
-                            if (value >= 2.0) {
-                                zoneText = 'Suroptimisation';
-                            } else if (value >= 1.5) {
-                                zoneText = 'Optimisation forte';
-                            } else if (value >= 1.0) {
-                                zoneText = 'Optimisation normale';
-                            } else {
-                                zoneText = 'Sous-optimisation';
-                            }
-                            
-                            return `<div class="p-2 bg-gray-800 text-white rounded shadow-lg">
-                                <div class="font-bold">${fullData.keyword}</div>
-                                <div>Occurrences: ${fullData.count}</div>
-                                <div>Plage optimale: ${rangeText}</div>
-                                <div>Zone: ${zoneText}</div>
-                            </div>`;
-                        }
-                        
-                        return `<div class="p-2 bg-gray-800 text-white rounded shadow-lg">
-                            <div class="font-bold">${keyword}</div>
-                            <div>Ratio: ${ratio}%</div>
-                        </div>`;
-                    }
-                },
-                legend: {
-                    show: false
-                },
-                dataLabels: {
-                    enabled: false
-                }
-            };
-            
-            optimizationChart = new ApexCharts(document.querySelector("#optimization-chart"), options);
-            optimizationChart.render();
-        }
-        
-        // Mettre à jour le graphique d'optimisation avec ApexCharts
-        function updateOptimizationChart() {
-            // Si le graphique n'est pas initialisé, essayons de l'initialiser maintenant
-            if (!optimizationChart) {
-                console.warn('Le graphique d\'optimisation n\'est pas initialisé, tentative d\'initialisation...');
-                initOptimizationChart();
-                
-                // Vérifier à nouveau si l'initialisation a réussi
-                if (!optimizationChart) {
-                    console.error('Échec de l\'initialisation du graphique d\'optimisation');
-                    return;
-                }
-            }
-            
-            console.log('Mise à jour du graphique avec les données:', keywordData);
-            
-            // Vérifier si nous avons des données
-            if (keywordData.length === 0) {
-                console.warn('Aucune donnée de mot-clé disponible pour le graphique');
-                return;
-            }
-            
-            // Trier les mots-clés par importance décroissante
-            const sortedData = [...keywordData].sort((a, b) => b.importance - a.importance);
-            
-            // Limiter à un nombre raisonnable de mots-clés pour le graphique
-            const maxKeywords = 40; // Augmenter pour montrer plus de mots-clés comme dans l'exemple
-            displayData = sortedData.slice(0, maxKeywords);
-            
-            // Préparer les données pour le graphique
-            // Utiliser les vrais mots-clés comme labels
-            const labels = displayData.map((item) => item.keyword);
-            
-            // Calculer correctement les ratios pour chaque mot-clé
-            const contentValues = displayData.map(item => {
-                // Utiliser directement les valeurs minRequired et maxRequired
-                let minCount = item.minRequired || 0;
-                let maxCount = item.maxRequired || 0;
-                let ratio = 0;
-                
-                // Calculer le ratio en fonction de la position dans la plage
-                if (maxCount > minCount) {
-                    if (item.count < minCount) {
-                        // Sous-optimisation (0 - 1.0)
-                        ratio = item.count / minCount;
-                    } else if (item.count > maxCount) {
-                        // Suroptimisation (2.0+)
-                        ratio = 2.0 + ((item.count - maxCount) / maxCount) * 0.5;
-                    } else {
-                        // Entre min et max (1.0 - 2.0)
-                        // Mapper la plage [minCount, maxCount] à [1.0, 2.0]
-                        ratio = 1.0 + ((item.count - minCount) / (maxCount - minCount));
-                    }
-                } else if (minCount > 0) {
-                    // Si min = max, utiliser simplement le ratio count/min
-                    ratio = item.count / minCount;
-                }
-                
-                // Limiter le ratio entre 0 et 2.5 (max du graphique)
-                return Math.min(ratio, 2.5);
-            });
-            
-            console.log('Données préparées pour le graphique:', {
-                labels: labels,
-                values: contentValues,
-                rawData: displayData
-            });
-            
-            // Mettre à jour les données du graphique
-            optimizationChart.updateOptions({
-                xaxis: {
-                    categories: labels
-                }
-            });
-            
-            optimizationChart.updateSeries([{
-                name: 'Votre contenu',
-                data: contentValues
-            }]);
-            
-            // Mettre à jour la liste des mots-clés sous le graphique
-            updateGraphKeywordsList(displayData);
-        }
-        
-        // Mettre à jour la liste des mots-clés sous le graphique
-        function updateGraphKeywordsList(keywordsData) {
-            const keywordsList = document.getElementById('graph-keywords-list');
-            if (!keywordsList) return;
-            
-            // Vider la liste actuelle
-            keywordsList.innerHTML = '';
-            
-            // Ajouter chaque mot-clé sous forme de puce colorée
-            keywordsData.forEach((item, index) => {
-                // Extraire les valeurs min et max de la plage d'optimisation
-                let minCount = 0;
-                let maxCount = 0;
-                let ratio = 0;
-                let rangeText = '';
-                
-                if (item.required && typeof item.required === 'string' && item.required.includes(',')) {
-                    // Format "min,max" (ex: "2,44")
-                    const parts = item.required.split(',');
-                    minCount = parseInt(parts[0], 10) || 0;
-                    maxCount = parseInt(parts[1], 10) || minCount * 2;
-                    rangeText = `${item.count}/${minCount}-${maxCount}`;
-                } else if (item.required > 0) {
-                    // Format numérique simple
-                    minCount = item.required;
-                    maxCount = item.required * 2; // Par défaut, max = 2x min
-                    rangeText = `${item.count}/${item.required}`;
-                } else {
-                    rangeText = `${item.count}/0`;
-                }
-                
-                // Calculer le ratio en fonction de la position dans la plage
-                if (maxCount > minCount) {
-                    if (item.count < minCount) {
-                        // Sous-optimisation (0 - 1.0)
-                        ratio = item.count / minCount;
-                    } else if (item.count > maxCount) {
-                        // Suroptimisation (2.0+)
-                        ratio = 2.0 + ((item.count - maxCount) / maxCount) * 0.5;
-                    } else {
-                        // Entre min et max (1.0 - 2.0)
-                        // Mapper la plage [minCount, maxCount] à [1.0, 2.0]
-                        ratio = 1.0 + ((item.count - minCount) / (maxCount - minCount));
-                    }
-                } else if (minCount > 0) {
-                    // Si min = max, utiliser simplement le ratio count/min
-                    ratio = item.count / minCount;
-                }
-                
-                let bgColor = '';
-                if (ratio >= 2.0) {
-                    bgColor = 'bg-red-500 text-white'; // Suroptimisation
-                } else if (ratio >= 1.5) {
-                    bgColor = 'bg-yellow-500 text-black'; // Optimisation forte
-                } else if (ratio >= 1.0) {
-                    bgColor = 'bg-green-400 text-black'; // Optimisation normale
-                } else {
-                    bgColor = 'bg-blue-300 text-black'; // Sous-optimisation
-                }
-                
-                // Créer la puce
-                const chip = document.createElement('div');
-                chip.className = `${bgColor} rounded-full px-2 py-0.5 cursor-pointer transition-all hover:shadow-md inline-flex items-center`;
-                chip.innerHTML = `<span class="font-semibold">${index + 1}. ${item.keyword}</span> <span class="ml-1">${rangeText}</span>`;
-                
-                // Ajouter l'événement de survol pour mettre en évidence le point correspondant
-                chip.addEventListener('mouseenter', () => {
-                    highlightGraphPoint(index);
-                });
-                
-                chip.addEventListener('mouseleave', () => {
-                    resetGraphHighlights();
-                });
-                
-                keywordsList.appendChild(chip);
-            });
-        }
-        
-        // Mettre en évidence un point spécifique sur le graphique
-        function highlightGraphPoint(index) {
-            if (!optimizationChart) return;
-            
-            // Stocker l'index du point mis en évidence
-            highlightedPoint = index;
-            
-            // Créer un tableau de marqueurs avec une taille plus grande pour le point sélectionné
-            const newMarkers = {
-                size: Array(displayData.length).fill(4),
-                colors: Array(displayData.length).fill('#000000'),
-                strokeWidth: Array(displayData.length).fill(0),
-                strokeColors: Array(displayData.length).fill('#000000')
-            };
-            
-            // Augmenter la taille du point sélectionné
-            newMarkers.size[index] = 8;
-            newMarkers.colors[index] = '#3182ce'; // Bleu plus visible
-            newMarkers.strokeWidth[index] = 2;
-            
-            // Appliquer les modifications
-            optimizationChart.updateOptions({
-                markers: newMarkers
-            });
-        }
-        
-        // Réinitialiser les mises en évidence du graphique
-        function resetGraphHighlights() {
-            if (!optimizationChart) return;
-            
-            // Réinitialiser l'index du point mis en évidence
-            highlightedPoint = null;
-            
-            // Rétablir les valeurs par défaut pour tous les marqueurs
-            optimizationChart.updateOptions({
-                markers: {
-                    size: 4,
-                    colors: ['#000000'],
-                    strokeWidth: 0,
-                    hover: {
-                        size: 6
-                    }
-                }
-            });
-        }
-        
-        // Fonction utilitaire pour échapper les caractères spéciaux dans les expressions régulières
-        function escapeRegExp(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-    </script>
+    <!-- JavaScript déplacé vers l'architecture modulaire dans /static/js/ -->
 </body>
 </html>
