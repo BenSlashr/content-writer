@@ -155,22 +155,30 @@ class ContentWriterApp {
      * @param {string} text - Texte à analyser
      */
     async analyzeText(text) {
-        if (!text.trim()) {
-            // Réinitialiser l'interface si le texte est vide
+        // Toujours récupérer le contenu le plus à jour depuis l'éditeur
+        const latestText = this.ui?.elements?.editor?.textContent ?? text ?? '';
+
+        if (!latestText.trim()) {
+            // Réinitialiser complètement l'interface si le texte est vide
             this.ui.updateStatistics({
                 score_seo: 0, base_score: 0, malus: 0,
                 score_obligatoires: 0, score_complementaires: 0,
                 suroptimisation: 0
             }, { wordCount: 0 });
+            // Vider les listes de mots-clés et les surlignages
+            this.ui.updateKeywordLists({ obligatoires: {}, complementaires: {} });
+            this.ui.highlightKeywords({ obligatoires: {}, complementaires: {} }, []);
+            // Nettoyer le graphique
+            if (this.chart?.clear) this.chart.clear();
             return;
         }
 
         try {
             console.log('🔄 Analyse du texte en cours...');
 
-            // Analyser localement avec le module scoring
-            const localResults = this.scoring.analyzeText(text);
-            
+            // Analyser à partir du contenu courant de l'éditeur
+            const localResults = this.scoring.analyzeText(latestText);
+
             // Mettre à jour l'interface immédiatement
             this.ui.updateStatistics(localResults.scores, localResults.stats);
             this.ui.updateKeywordLists(localResults.keywords);

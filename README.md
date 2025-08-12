@@ -120,8 +120,10 @@ content-writer/
 
 ## 🔌 API Endpoints
 
-### **POST /analyze**
-Analyse un texte et retourne les métriques SEO complètes.
+### **POST /analyze** (Slashr-only)
+Analyse un texte et retourne les métriques SEO complètes. Le backend utilise désormais exclusivement le guide Slashr en cache (ou l'appelle à la volée si absent) et applique une détection hybride:
+- Normalisation Unicode accent-insensible + fenêtre glissante pour détecter les candidats
+- Validation contextuelle sur le texte original (apostrophes/tirets/multi-mots)
 
 ```json
 // Request
@@ -145,7 +147,7 @@ Analyse un texte et retourne les métriques SEO complètes.
 ```
 
 ### **POST /order-guide-slashr**
-Commande un guide SEO personnalisé via l'API Slashr.
+Commande un guide SEO personnalisé via l'API Slashr et l'enregistre en cache côté serveur. Ce guide devient la source de vérité pour `/analyze`.
 
 ```json
 // Request
@@ -269,6 +271,23 @@ L'application suit une **architecture modulaire** avec séparation claire des re
 - **`api.js`** : Gestion des communications réseau
 - **`scoring.js`** : Logique métier SEO
 - **`ui.js`** : Interactions interface utilisateur
+### **Détection des mots-clés – Design et choix**
+
+Backend (source de vérité):
+- Normalisation Unicode accent-insensible (NFD sans diacritiques)
+- Fenêtre glissante sur tokens pour candidats
+- Validation regex flexible sur le texte original pour mots "à risque" (apostrophes/tirets/multi-mots)
+- Alignement Slashr-only avec extraction unifiée `[keyword, frequency, importance, min, max]`
+
+Frontend (UX instantanée):
+- `scoring.js`: même normalisation; tolérance pluriel basique sur le dernier mot des expressions
+- `ui.js`: surlignage via `markRanges` avec offsets exacts issus d’un `KeywordMatcher` (évite les divergences avec la normalisation)
+- Option recommandée: synchroniser avec `/analyze` (serveur) après l’analyse locale si vous voulez réconcilier et afficher les comptes exacts du backend
+
+Notes:
+- Apostrophes: le serveur valide dans le texte original pour éviter les faux positifs
+- Pluriels: front et back traitent les variantes de manière compatible
+
 - **`errorHandler.js`** : Gestion robuste des erreurs
 
 ### **Gestion d'Erreurs**

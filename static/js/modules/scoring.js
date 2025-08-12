@@ -4,6 +4,100 @@
  * @version 1.0.0
  */
 
+class KeywordMatcher {
+    constructor() {
+        this.pluralSuffixes = ['', 's', 'es', 'x'];
+    }
+
+    normalizeTextForSearch(text) {
+        if (!text) return '';
+        const withoutDiacritics = text.normalize('NFD').replace(/\p{M}+/gu, '');
+        return withoutDiacritics
+            .toLowerCase()
+            .replace(/['"\u2018\u2019\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, ' ')
+            .replace(/[-_]/g, ' ')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    createPositionMap(text) {
+        const map = {};
+        let wordIndex = 0;
+        const wordPattern = /[\p{L}\p{N}]+(?:['’][\p{L}]+)*/gu;
+        let match;
+        while ((match = wordPattern.exec(text)) !== null) {
+            map[wordIndex] = {
+                start: match.index,
+                end: match.index + match[0].length,
+                word: match[0]
+            };
+            wordIndex++;
+        }
+        return map;
+    }
+
+    matchesWithPlural(word, base) {
+        for (const suffix of this.pluralSuffixes) {
+            if (word === base + suffix) return true;
+        }
+        return false;
+    }
+
+    matchesExpression(textWords, startIndex, kwWords) {
+        const k = kwWords.length;
+        for (let j = 0; j < k; j++) {
+            const textWord = textWords[startIndex + j];
+            const kwWord = kwWords[j];
+            if (j === k - 1) {
+                if (!this.matchesWithPlural(textWord, kwWord)) return false;
+            } else {
+                if (textWord !== kwWord) return false;
+            }
+        }
+        return true;
+    }
+
+    findAllMatches(text, keyword) {
+        const normalizedText = this.normalizeTextForSearch(text);
+        const normalizedKeyword = this.normalizeTextForSearch(keyword);
+        const matches = [];
+        const textWords = normalizedText.split(' ').filter(Boolean);
+        const kwWords = normalizedKeyword.split(' ').filter(Boolean);
+        if (kwWords.length === 0 || textWords.length === 0) return matches;
+
+        const positionMap = this.createPositionMap(text);
+
+        if (kwWords.length === 1) {
+            const base = kwWords[0];
+            let idx = 0;
+            textWords.forEach((word) => {
+                if (this.matchesWithPlural(word, base)) {
+                    const originalPos = positionMap[idx];
+                    if (originalPos) {
+                        matches.push({ start: originalPos.start, end: originalPos.end, match: originalPos.word });
+                    }
+                }
+                idx++;
+            });
+            return matches;
+        }
+
+        const k = kwWords.length;
+        for (let i = 0; i <= textWords.length - k; i++) {
+            if (this.matchesExpression(textWords, i, kwWords)) {
+                const startPos = positionMap[i];
+                const endPos = positionMap[i + k - 1];
+                if (startPos && endPos) {
+                    matches.push({ start: startPos.start, end: endPos.end, match: text.substring(startPos.start, endPos.end) });
+                }
+            }
+        }
+        return matches;
+    }
+}
+
 class SEOScoring {
     constructor() {
         this.keywords = {
@@ -20,16 +114,23 @@ class SEOScoring {
      */
     normalizeTextForSearch(text) {
         if (!text) return '';
-        
-        // Remplacer les apostrophes et guillemets par des espaces
-        text = text.replace(/['\"\u2018\u2019\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, ' ');
-        // Remplacer les tirets par des espaces (pour éviter site-web = site web)
-        text = text.replace(/[-_]/g, ' ');
-        // Remplacer la ponctuation restante par des espaces
-        text = text.replace(/[^\w\s]/g, ' ');
-        // Normaliser les espaces multiples
-        text = text.replace(/\s+/g, ' ');
-        return text.trim();
+
+        // Décomposer Unicode et retirer les diacritiques (accent-insensible)
+        const withoutDiacritics = text.normalize('NFD').replace(/\p{M}+/gu, '');
+
+        return withoutDiacritics
+            .toLowerCase()
+            // Remplacer les apostrophes et guillemets par des espaces
+            .replace(/['"\u2018\u2019\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, ' ')
+            // Remplacer les tirets/underscores par des espaces
+            .replace(/[-_]/g, ' ')
+            // Garder seulement lettres/chiffres/espaces (Unicode)
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            // Supprimer les espaces invisibles éventuels
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')
+            // Normaliser les espaces multiples
+            .replace(/\s+/g, ' ')
+            .trim();
     }
 
     /**
@@ -40,23 +141,8 @@ class SEOScoring {
      */
     countKeywordOccurrences(text, keyword) {
         if (!text || !keyword) return 0;
-        
-        const normalizedText = this.normalizeTextForSearch(text.toLowerCase());
-        const normalizedKeyword = this.normalizeTextForSearch(keyword.toLowerCase());
-        
-        if (!normalizedKeyword || !normalizedText) return 0;
-
-        // Méthode 1: Regex avec word boundaries
-        const pattern = new RegExp(`\\b${normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
-        const matches = normalizedText.match(pattern) || [];
-        const countRegex = matches.length;
-        
-        // Méthode 2: Split et comparaison exacte pour validation
-        const words = normalizedText.split(/\s+/).filter(word => word.length > 0);
-        const countSplit = words.filter(word => word === normalizedKeyword).length;
-        
-        // Retourner le résultat le plus cohérent
-        return countRegex === countSplit ? countRegex : Math.min(countRegex, countSplit);
+        const matcher = new KeywordMatcher();
+        return matcher.findAllMatches(text, keyword).length;
     }
 
     /**
@@ -75,7 +161,7 @@ class SEOScoring {
 
         // Analyser les mots-clés obligatoires
         for (const [keyword, data] of Object.entries(this.keywords.obligatoires)) {
-            const count = this.countKeywordOccurrences(textLower, keyword);
+            const count = this.countKeywordOccurrences(text, keyword);
             results.keywords.obligatoires[keyword] = {
                 ...data,
                 count,
@@ -85,7 +171,7 @@ class SEOScoring {
 
         // Analyser les mots-clés complémentaires
         for (const [keyword, data] of Object.entries(this.keywords.complementaires)) {
-            const count = this.countKeywordOccurrences(textLower, keyword);
+            const count = this.countKeywordOccurrences(text, keyword);
             results.keywords.complementaires[keyword] = {
                 ...data,
                 count,

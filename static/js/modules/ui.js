@@ -4,6 +4,100 @@
  * @version 1.0.0
  */
 
+class KeywordMatcher {
+    constructor() {
+        this.pluralSuffixes = ['', 's', 'es', 'x'];
+    }
+
+    normalizeTextForSearch(text) {
+        if (!text) return '';
+        const withoutDiacritics = text.normalize('NFD').replace(/\p{M}+/gu, '');
+        return withoutDiacritics
+            .toLowerCase()
+            .replace(/['"\u2018\u2019\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, ' ')
+            .replace(/[-_]/g, ' ')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    createPositionMap(text) {
+        const map = {};
+        let wordIndex = 0;
+        const wordPattern = /[\p{L}\p{N}]+(?:['’][\p{L}]+)*/gu;
+        let match;
+        while ((match = wordPattern.exec(text)) !== null) {
+            map[wordIndex] = {
+                start: match.index,
+                end: match.index + match[0].length,
+                word: match[0]
+            };
+            wordIndex++;
+        }
+        return map;
+    }
+
+    matchesWithPlural(word, base) {
+        for (const suffix of this.pluralSuffixes) {
+            if (word === base + suffix) return true;
+        }
+        return false;
+    }
+
+    matchesExpression(textWords, startIndex, kwWords) {
+        const k = kwWords.length;
+        for (let j = 0; j < k; j++) {
+            const textWord = textWords[startIndex + j];
+            const kwWord = kwWords[j];
+            if (j === k - 1) {
+                if (!this.matchesWithPlural(textWord, kwWord)) return false;
+            } else {
+                if (textWord !== kwWord) return false;
+            }
+        }
+        return true;
+    }
+
+    findAllMatches(text, keyword) {
+        const normalizedText = this.normalizeTextForSearch(text);
+        const normalizedKeyword = this.normalizeTextForSearch(keyword);
+        const matches = [];
+        const textWords = normalizedText.split(' ').filter(Boolean);
+        const kwWords = normalizedKeyword.split(' ').filter(Boolean);
+        if (kwWords.length === 0 || textWords.length === 0) return matches;
+
+        const positionMap = this.createPositionMap(text);
+
+        if (kwWords.length === 1) {
+            const base = kwWords[0];
+            let idx = 0;
+            textWords.forEach((word) => {
+                if (this.matchesWithPlural(word, base)) {
+                    const originalPos = positionMap[idx];
+                    if (originalPos) {
+                        matches.push({ start: originalPos.start, end: originalPos.end, match: originalPos.word });
+                    }
+                }
+                idx++;
+            });
+            return matches;
+        }
+
+        const k = kwWords.length;
+        for (let i = 0; i <= textWords.length - k; i++) {
+            if (this.matchesExpression(textWords, i, kwWords)) {
+                const startPos = positionMap[i];
+                const endPos = positionMap[i + k - 1];
+                if (startPos && endPos) {
+                    matches.push({ start: startPos.start, end: endPos.end, match: text.substring(startPos.start, endPos.end) });
+                }
+            }
+        }
+        return matches;
+    }
+}
+
 class UIManager {
     constructor() {
         this.elements = {};
@@ -262,25 +356,36 @@ class UIManager {
         // Effacer les surlignages précédents
         this.marker.unmark();
 
-        // Surligner les mots-clés obligatoires
+        const editorText = this.elements.editor ? this.elements.editor.textContent : '';
+        const matcher = new KeywordMatcher();
+
+        // Construire les ranges obligatoires
+        const obligatoryRanges = [];
         Object.keys(keywords.obligatoires).forEach(keyword => {
-            this.marker.mark(keyword, {
-                className: 'obligatoire',
-                accuracy: 'exactly',
-                separateWordSearch: false
-            });
+            const found = matcher.findAllMatches(editorText, keyword);
+            found.forEach(m => obligatoryRanges.push({ start: m.start, length: Math.max(0, m.end - m.start) }));
         });
 
-        // Surligner les mots-clés complémentaires
+        // Construire les ranges complémentaires
+        const complementaryRanges = [];
         Object.keys(keywords.complementaires).forEach(keyword => {
-            this.marker.mark(keyword, {
-                className: 'complementaire',
-                accuracy: 'exactly',
-                separateWordSearch: false
-            });
+            const found = matcher.findAllMatches(editorText, keyword);
+            found.forEach(m => complementaryRanges.push({ start: m.start, length: Math.max(0, m.end - m.start) }));
         });
 
-        // Surligner les n-grams trouvés
+        if (obligatoryRanges.length > 0) {
+            this.marker.markRanges(obligatoryRanges, {
+                className: 'obligatoire'
+            });
+        }
+
+        if (complementaryRanges.length > 0) {
+            this.marker.markRanges(complementaryRanges, {
+                className: 'complementaire'
+            });
+        }
+
+        // Surligner les n-grams trouvés (simple)
         ngramsFound.forEach(ngram => {
             this.marker.mark(ngram, {
                 className: 'ngram',

@@ -8,6 +8,7 @@ import urllib.parse
 import logging
 import re
 from typing import Dict, Any, Optional
+import unicodedata
 from fastapi.responses import FileResponse  # Ajoutez cette importation
 import os  # Ajoutez cette importation
 
@@ -59,115 +60,136 @@ class SlashrGuideRequest(BaseModel):
     keywords: str
     location: str = "France"
 
-# Modèle de données pour le cache
-thot_cache: Dict[str, Any] = {}
+# Modèle de données pour le cache (Slashr uniquement)
 slashr_cache: Dict[str, Any] = {}
-
-# Configuration de l'API Thot
-THOT_API_KEY = "tools@slashr.fr::2.0SL5CGX8tGHJKCGVHBnzvsi"
-THOT_API_ENDPOINT = "https://api.thot-seo.fr/commande-api"
 
 # Configuration de l'API Slashr Sémantique
 SLASHR_API_BASE_URL = "https://outils.agence-slashr.fr/semantique/api/v1"
 SLASHR_TIMEOUT = 30.0
 
-def normalize_text_for_search(text):
+def normalize_text_for_search(text: str) -> str:
     """
-    Normalise le texte pour la recherche en supprimant la ponctuation excessive
-    mais en préservant la structure des mots.
+    Normalisation Unicode accent-insensible et conservatrice pour la détection de mots
+    - Retire les diacritiques (é -> e) pour être robuste aux accents
+    - Remplace la ponctuation par des espaces en conservant lettres/chiffres Unicode
+    - Normalise les espaces et supprime les espaces invisibles
     """
-    # Remplacer les apostrophes et guillemets par des espaces
+    if not text:
+        return ""
+
+    # Mise en minuscules et suppression des diacritiques (accent-insensible)
+    text = unicodedata.normalize('NFD', text.lower())
+    text = ''.join(ch for ch in text if unicodedata.category(ch) != 'Mn')
+    # Remplacer guillemets/apostrophes par espaces
     text = re.sub(r"['\"\u2018\u2019\u201C\u201D\u201E\u201F\u00AB\u00BB]", ' ', text)
-    # Remplacer les tirets par des espaces (pour éviter site-web = site web)
+    # Tirets et underscores -> espaces
     text = re.sub(r'[-_]', ' ', text)
-    # Remplacer la ponctuation restante par des espaces
-    text = re.sub(r'[^\w\s]', ' ', text)
-    # Normaliser les espaces multiples
+    # Conserver lettres/chiffres/espaces (Unicode)
+    text = re.sub(r'[^\w\s]', ' ', text, flags=re.UNICODE)
+    # Supprimer espaces invisibles
+    text = re.sub(r'[\u200B-\u200D\uFEFF]', '', text)
+    # Espaces multiples
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-def count_keyword_occurrences(text, keyword):
+def count_keyword_occurrences(text: str, keyword: str) -> int:
     """
-    Compte les occurrences d'un mot-clé dans un texte de manière ULTRA-ROBUSTE.
-    
-    Cette fonction gère :
-    - La ponctuation (créatine, créatine. créatine! "créatine" etc.)
-    - Les mots composés avec espaces (prise de masse)
-    - Les variations de casse
-    - Les caractères spéciaux et accents
-    - Les apostrophes et guillemets
-    - Les espaces multiples
-    - Les retours à la ligne
-    
-    Args:
-        text (str): Le texte dans lequel chercher (déjà en minuscules)
-        keyword (str): Le mot-clé à chercher (déjà en minuscules)
-    
-    Returns:
-        int: Nombre d'occurrences trouvées
+    Détection hybride: normalisation + candidats fenêtre glissante, puis validation sur texte original
+    pour éviter les faux positifs (apostrophes, tirets, ponctuation collée).
     """
     if not keyword or not text:
         return 0
-    
-    # Normaliser le texte et le mot-clé
+
     normalized_text = normalize_text_for_search(text)
     normalized_keyword = normalize_text_for_search(keyword)
-    
     if not normalized_keyword or not normalized_text:
         return 0
-    
-    # Méthode 1: Recherche exacte avec regex robuste
-    count_regex = 0
-    if ' ' in normalized_keyword:
-        # Pour les expressions multi-mots
-        parts = normalized_keyword.split()
-        escaped_parts = [re.escape(part) for part in parts]
-        pattern = r'\b' + r'\s+'.join(escaped_parts) + r'\b'
-    else:
-        # Pour les mots simples
-        pattern = r'\b' + re.escape(normalized_keyword) + r'\b'
-    
-    matches = re.findall(pattern, normalized_text, re.IGNORECASE | re.UNICODE)
-    count_regex = len(matches)
-    
-    # Méthode 2: Recherche par découpage en mots (validation)
-    count_split = 0
-    if ' ' not in normalized_keyword:
-        # Pour les mots simples, compter aussi par découpage avec validation stricte
-        words = normalized_text.split()
-        for word in words:
-            # Comparaison exacte pour éviter les pluriels (protéines ≠ protéine)
-            if word.lower() == normalized_keyword.lower():
-                count_split += 1
-    else:
-        # Pour les expressions multi-mots, rechercher la séquence
-        words = normalized_text.split()
-        keyword_parts = normalized_keyword.split()
-        keyword_length = len(keyword_parts)
-        
-        for i in range(len(words) - keyword_length + 1):
-            if all(words[i + j].lower() == keyword_parts[j].lower() 
-                   for j in range(keyword_length)):
-                count_split += 1
-    
-    # Utiliser la méthode regex comme référence principale, split comme validation
-    # Si les deux méthodes donnent des résultats différents, prendre le plus conservateur
-    if count_regex == count_split:
-        final_count = count_regex
-    else:
-        # En cas de différence, prendre le minimum pour éviter les faux positifs
-        final_count = min(count_regex, count_split)
-        if count_regex > 0 and count_split > 0:
-            # Sauf si les deux méthodes trouvent quelque chose, alors prendre le max
-            final_count = max(count_regex, count_split)
-    
-    # Debug: afficher les détails si les méthodes diffèrent
-    if count_regex != count_split:
-        logger.info(f"Détection différente pour '{keyword}': regex={count_regex}, split={count_split}, final={final_count}")
-    
-    return final_count
 
-def calculate_simple_robust_score(kw_obligatoires_count, kw_complementaires_count, thot_data):
+    # Étape 1: détection candidats (fenêtre glissante)
+    words = [w for w in normalized_text.split() if w]
+    kw_parts = [p for p in normalized_keyword.split() if p]
+    if not words or not kw_parts:
+        return 0
+
+    # Compte candidats
+    if len(kw_parts) == 1:
+        candidates_count = sum(1 for w in words if w == kw_parts[0])
+    else:
+        candidates_count = 0
+        k = len(kw_parts)
+        for i in range(len(words) - k + 1):
+            if all(words[i + j] == kw_parts[j] for j in range(k)):
+                candidates_count += 1
+
+    if candidates_count == 0:
+        return 0
+
+    # Étape 2: validation contextuelle sur texte original pour mots à risque
+    risky = ("'" in keyword) or ("-" in keyword) or (len(kw_parts) > 1)
+    if not risky:
+        return candidates_count
+
+    # Construire un pattern flexible basé sur le mot-clé original
+    pattern = build_flexible_pattern(keyword)
+    try:
+        matches = re.findall(pattern, text.lower(), flags=re.UNICODE)
+        valid_count = len(matches)
+    except re.error:
+        valid_count = candidates_count  # fallback en cas de pattern invalide
+
+    # Ne pas dépasser le nombre de candidats détectés par normalisation
+    return min(candidates_count, valid_count) if valid_count > 0 else candidates_count
+
+
+def build_flexible_pattern(original_keyword: str) -> str:
+    """
+    Construit un pattern regex flexible:
+    - tolère apostrophes droites/courbes et espaces entre les segments
+    - tolère tirets entre segments
+    - encadrement par non-lettre/chiffre unicode (évite les sous-chaînes)
+    """
+    kw = original_keyword.lower().strip()
+    # Découper sur espaces / apostrophes (droites/courbes) / tirets
+    parts = re.split(r"[\s'’′\-]+", kw)
+    parts = [re.escape(p) for p in parts if p]
+    if not parts:
+        return r""
+    # Séparateur flexible: un ou plusieurs espaces/tirets/apostrophes
+    sep = r"(?:['’′\-\s]+)"
+    core = sep.join(parts)
+    # Encadrement: pas de lettre/chiffre unicode avant/après
+    # Utilise \w (unicode) mais exclut l'underscore explicitement
+    boundary_left = r"(?<![\w])"
+    boundary_right = r"(?![\w])"
+    pattern = boundary_left + core + boundary_right
+    return pattern
+
+def _extract_kw_fields(kw_info):
+    """
+    Supporte deux formats:
+    - Slashr converti: [keyword, frequency, importance, min, max]
+    - Thot (hérité / sample): [keyword, min, importance, (max?)]
+    Retourne: (keyword:str, min_freq:int, importance:int, max_freq:int)
+    """
+    if isinstance(kw_info, (list, tuple)):
+        if len(kw_info) >= 5:
+            # Slashr
+            keyword = str(kw_info[0]).lower()
+            min_freq = int(kw_info[3])
+            importance = int(kw_info[2])
+            max_freq = int(kw_info[4])
+            return keyword, min_freq, importance, max_freq
+        else:
+            # Thot/ancien
+            keyword = str(kw_info[0]).lower()
+            min_freq = int(kw_info[1]) if len(kw_info) > 1 else 1
+            importance = int(kw_info[2]) if len(kw_info) > 2 else 1
+            max_freq = int(kw_info[3]) if len(kw_info) > 3 else min_freq * 2
+            return keyword, min_freq, importance, max_freq
+    return "", 0, 0, 0
+
+
+def calculate_simple_robust_score(kw_obligatoires_count, kw_complementaires_count, guide_data):
     """
     Calcule un score SEO robuste de 0 à 100 basé sur l'atteinte des objectifs de mots-clés.
     
@@ -204,16 +226,14 @@ def calculate_simple_robust_score(kw_obligatoires_count, kw_complementaires_coun
     # Compter les mots-clés qui atteignent leur objectif
     obligatoires_success = 0
     complementaires_success = 0
-    total_obligatoires = len(thot_data.get("KW_obligatoires", []))
-    total_complementaires = len(thot_data.get("KW_complementaires", []))
+    total_obligatoires = len(guide_data.get("KW_obligatoires", []))
+    total_complementaires = len(guide_data.get("KW_complementaires", []))
     
     malus_count = 0
     
     # Vérifier les mots-clés obligatoires
-    for kw_info in thot_data.get("KW_obligatoires", []):
-        keyword = kw_info[0].lower()
-        min_freq = kw_info[1]  # Fréquence minimale requise
-        max_freq = kw_info[3] if len(kw_info) > 3 else min_freq * 2  # Fréquence maximale recommandée
+    for kw_info in guide_data.get("KW_obligatoires", []):
+        keyword, min_freq, _importance, max_freq = _extract_kw_fields(kw_info)
         
         count = kw_obligatoires_count.get(keyword, {}).get("count", 0)
         
@@ -225,10 +245,8 @@ def calculate_simple_robust_score(kw_obligatoires_count, kw_complementaires_coun
                 malus_count += 1
     
     # Vérifier les mots-clés complémentaires
-    for kw_info in thot_data.get("KW_complementaires", []):
-        keyword = kw_info[0].lower()
-        min_freq = kw_info[1]
-        max_freq = kw_info[3] if len(kw_info) > 3 else min_freq * 2
+    for kw_info in guide_data.get("KW_complementaires", []):
+        keyword, min_freq, _importance, max_freq = _extract_kw_fields(kw_info)
         
         count = kw_complementaires_count.get(keyword, {}).get("count", 0)
         
@@ -282,25 +300,35 @@ async def analyze_text(request: TextAnalysisRequest):
     Analyse le texte fourni et retourne les statistiques basées sur les mots-clés
     """
     try:
-        # Si la requête est déjà dans le cache, utiliser les données en cache
-        if request.query in thot_cache:
-            thot_data = thot_cache[request.query]
+        # Slashr uniquement: récupérer le guide en cache, sinon appeler l'API Slashr
+        if request.query in slashr_cache:
+            guide_data = slashr_cache[request.query]
         else:
-            # Simuler une requête à l'API Thot (à remplacer par l'appel réel à l'API)
-            # Dans un environnement de production, vous devriez utiliser l'API réelle
-            with open("sample_response.json", "r", encoding="utf-8") as f:
-                thot_data = json.load(f)
-            thot_cache[request.query] = thot_data
+            # Appel direct à l'API Slashr pour récupérer le guide manquant
+            encoded_query = request.query.replace(" ", "%20")
+            api_url = f"{SLASHR_API_BASE_URL}/analyze/{encoded_query}?location=France&language=fr"
+            try:
+                async with httpx.AsyncClient(timeout=SLASHR_TIMEOUT) as client:
+                    response = await client.get(api_url)
+                    if response.status_code == 200:
+                        raw = response.json()
+                        guide_data = process_slashr_data(raw, request.query)
+                        slashr_cache[request.query] = guide_data
+                    else:
+                        # Fallback legacy: données d'exemple
+                        with open("sample_response.json", "r", encoding="utf-8") as f:
+                            guide_data = json.load(f)
+            except Exception:
+                with open("sample_response.json", "r", encoding="utf-8") as f:
+                    guide_data = json.load(f)
         
         # Analyser le texte avec une détection améliorée des mots-clés
         text_lower = request.text.lower()
         
         # Compter les occurrences des mots-clés obligatoires
         kw_obligatoires_count = {}
-        for kw_info in thot_data.get("KW_obligatoires", []):
-            keyword = kw_info[0].lower()
-            required_count = kw_info[1]
-            importance = kw_info[2]
+        for kw_info in guide_data.get("KW_obligatoires", []):
+            keyword, min_required, importance, _max_required = _extract_kw_fields(kw_info)
             
             # Compter les occurrences du mot-clé dans le texte avec une méthode robuste
             count = count_keyword_occurrences(text_lower, keyword)
@@ -311,40 +339,38 @@ async def analyze_text(request: TextAnalysisRequest):
             
             kw_obligatoires_count[keyword] = {
                 "count": count,
-                "required": required_count,
+                "required": min_required,
                 "importance": importance,
-                "completed": count >= required_count
+                "completed": count >= min_required
             }
         
         # Compter les occurrences des mots-clés complémentaires
         kw_complementaires_count = {}
-        for kw_info in thot_data.get("KW_complementaires", []):
-            keyword = kw_info[0].lower()
-            required_count = kw_info[1]
-            importance = kw_info[2]
+        for kw_info in guide_data.get("KW_complementaires", []):
+            keyword, min_required, importance, _max_required = _extract_kw_fields(kw_info)
             
             # Compter les occurrences du mot-clé dans le texte avec une méthode robuste
             count = count_keyword_occurrences(text_lower, keyword)
             
             kw_complementaires_count[keyword] = {
                 "count": count,
-                "required": required_count,
+                "required": min_required,
                 "importance": importance,
-                "completed": count >= required_count
+                "completed": count >= min_required
             }
         
         # Debug: Afficher les mots-clés chargés et le texte analysé
         logger.info(f"=== DEBUG ANALYSE ===")
         logger.info(f"Query: {request.query}")
         logger.info(f"Texte analysé (premiers 200 caractères): {request.text[:200]}...")
-        logger.info(f"Nombre de mots-clés obligatoires: {len(thot_data.get('KW_obligatoires', []))}")
-        logger.info(f"Premiers 5 mots-clés obligatoires: {[kw[0] for kw in thot_data.get('KW_obligatoires', [])[:5]]}")
+        logger.info(f"Nombre de mots-clés obligatoires: {len(guide_data.get('KW_obligatoires', []))}")
+        logger.info(f"Premiers 5 mots-clés obligatoires: {[kw[0] for kw in guide_data.get('KW_obligatoires', [])[:5]]}")
         
         # Calculer le nouveau score SEO robuste
-        score_data = calculate_simple_robust_score(kw_obligatoires_count, kw_complementaires_count, thot_data)
+        score_data = calculate_simple_robust_score(kw_obligatoires_count, kw_complementaires_count, guide_data)
         
         # Vérifier les n-grams
-        ngrams = thot_data.get("ngrams", "").split(";")
+        ngrams = guide_data.get("ngrams", "").split(";")
         ngrams_found = []
         
         for ngram in ngrams:
@@ -362,7 +388,7 @@ async def analyze_text(request: TextAnalysisRequest):
         # Compter les mots (méthode améliorée)
         words = re.findall(r'\b\w+\b', text_lower)
         word_count = len(words)
-        mots_requis = thot_data.get("mots_requis", 0)
+        mots_requis = guide_data.get("mots_requis", 0)
         
         return {
             "score_seo": score_data["score_seo"],
@@ -655,8 +681,9 @@ async def order_guide_slashr(request: SlashrGuideRequest):
                 processed_data = process_slashr_data(response_data, request.keywords)
                 logger.info(f"Données traitées: {json.dumps(processed_data, indent=2, ensure_ascii=False)}")
                 
-                # Stocker les données traitées dans le cache
+                # Stocker les données traitées dans le cache (clé avec localisation et clé simple par query)
                 slashr_cache[cache_key] = processed_data
+                slashr_cache[request.keywords] = processed_data
                 
                 logger.info("Données Slashr traitées avec succès")
                 logger.info(f"=== FIN order_guide_slashr (succès) ===")
